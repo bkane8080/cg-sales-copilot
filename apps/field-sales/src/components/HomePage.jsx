@@ -1,14 +1,14 @@
 import React, { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { MapPin, Clock, AlertTriangle, CheckCircle, ChevronRight, ChevronLeft, MessageSquare, TrendingUp, Target, BarChart3, Store, Calendar, Plus } from 'lucide-react'
+import { MapPin, Clock, AlertTriangle, CheckCircle, ChevronRight, ChevronLeft, MessageSquare, TrendingUp, Target, BarChart3, Store, Calendar, Settings, Plus } from 'lucide-react'
 import { getVisits, getStoreKPIs } from '../api'
 
-const STORE_IMAGES = {
-  'Sephora': 'https://images.unsplash.com/photo-1604754742629-3f5d4b3e5d3e?w=400&h=200&fit=crop',
-  'Marionnaud': 'https://images.unsplash.com/photo-1556228578-0d85b1a4d571?w=400&h=200&fit=crop',
-  'Nocibé': 'https://images.unsplash.com/photo-1596462502278-27bfdc403348?w=400&h=200&fit=crop',
-  'Galeries Lafayette': 'https://images.unsplash.com/photo-1555529669-e69e7aa0ba9a?w=400&h=200&fit=crop',
-  'Printemps': 'https://images.unsplash.com/photo-1441986300917-64674bd600d8?w=400&h=200&fit=crop',
+const BRAND_COLORS = {
+  'Sephora': 'from-gray-900 to-gray-700',
+  'Marionnaud': 'from-rose-900 to-rose-700',
+  'Nocibé': 'from-purple-900 to-purple-700',
+  'Galeries Lafayette': 'from-amber-900 to-amber-700',
+  'Printemps': 'from-emerald-900 to-emerald-700',
 }
 
 export default function HomePage() {
@@ -17,10 +17,9 @@ export default function HomePage() {
   const [loading, setLoading] = useState(true)
   const [selectedDate, setSelectedDate] = useState(new Date())
   const navigate = useNavigate()
-  const REP_ID = 1
 
   useEffect(() => {
-    getVisits(REP_ID)
+    getVisits()
       .then(res => {
         setVisits(res.data)
         if (res.data.length > 0) {
@@ -32,8 +31,8 @@ export default function HomePage() {
   }, [])
 
   const today = new Date()
-  const dateStr = selectedDate.toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' })
-  const dayStr = selectedDate.toLocaleDateString('fr-FR', { weekday: 'long' })
+  const dateStr = selectedDate.toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })
+  const dayStr = selectedDate.toLocaleDateString('en-GB', { weekday: 'long' })
   const isToday = selectedDate.toISOString().split('T')[0] === today.toISOString().split('T')[0]
 
   const visitsForDate = visits.filter(v => {
@@ -59,19 +58,17 @@ export default function HomePage() {
 
   return (
     <div className="pb-24">
-      {/* Header */}
       <div className="bg-velvet-dark px-5 pt-12 pb-6 rounded-b-3xl">
         <div className="flex items-center justify-between mb-4">
           <div>
-            <h1 className="text-white text-xl font-bold">Bonjour, Eric</h1>
-            <p className="text-gray-400 text-sm mt-0.5">{visits.length} visites planifiées · Paris Ouest</p>
+            <h1 className="text-white text-xl font-bold">Hello, Eric</h1>
+            <p className="text-gray-400 text-sm mt-0.5">{visits.length} visits planned · Paris West</p>
           </div>
           <div className="w-9 h-9 rounded-full bg-velvet-gold flex items-center justify-center">
             <span className="text-velvet-dark font-bold text-xs">ES</span>
           </div>
         </div>
 
-        {/* KPI Cards - 2x2 Grid */}
         <div className="grid grid-cols-2 gap-3">
           <div className="bg-white/10 backdrop-blur-sm rounded-2xl p-3.5 border border-white/10">
             <div className="flex items-center justify-between mb-1">
@@ -79,7 +76,7 @@ export default function HomePage() {
               <TrendingUp size={12} className="text-emerald-400" />
             </div>
             <p className="text-white text-xl font-bold">{heroKpis?.AVG_SELL_OUT || '—'}</p>
-            <p className="text-gray-500 text-[10px]">u/semaine</p>
+            <p className="text-gray-500 text-[10px]">units/week</p>
           </div>
 
           <div className="bg-white/10 backdrop-blur-sm rounded-2xl p-3.5 border border-white/10">
@@ -93,31 +90,30 @@ export default function HomePage() {
 
           <div className="bg-white/10 backdrop-blur-sm rounded-2xl p-3.5 border border-white/10">
             <div className="flex items-center justify-between mb-1">
-              <span className="text-[10px] text-gray-400 uppercase font-medium">Visites</span>
+              <span className="text-[10px] text-gray-400 uppercase font-medium">Visits</span>
               <CheckCircle size={12} className="text-emerald-400" />
             </div>
             <p className="text-white text-xl font-bold">{completedCount}<span className="text-sm text-gray-400">/{visits.length}</span></p>
-            <p className="text-gray-500 text-[10px]">complétées</p>
+            <p className="text-gray-500 text-[10px]">completed</p>
           </div>
 
           <div className="bg-white/10 backdrop-blur-sm rounded-2xl p-3.5 border border-white/10">
             <div className="flex items-center justify-between mb-1">
-              <span className="text-[10px] text-gray-400 uppercase font-medium">PDM</span>
+              <span className="text-[10px] text-gray-400 uppercase font-medium">Market Share</span>
               <BarChart3 size={12} className="text-blue-400" />
             </div>
             <p className="text-white text-xl font-bold">{heroKpis?.AVG_MARKET_SHARE || '—'}<span className="text-sm">%</span></p>
-            <p className="text-gray-500 text-[10px]">part de marché</p>
+            <p className="text-gray-500 text-[10px]">avg share</p>
           </div>
         </div>
       </div>
 
-      {/* Day Navigation - Simple prev/next */}
       <div className="px-5 mt-5 flex items-center justify-between">
         <button onClick={() => navigateDay(-1)} className="p-2 rounded-xl bg-gray-100 active:bg-gray-200">
           <ChevronLeft size={16} className="text-gray-600" />
         </button>
         <div className="text-center">
-          <p className="text-sm font-bold text-gray-900 capitalize">{isToday ? "Aujourd'hui" : dayStr}</p>
+          <p className="text-sm font-bold text-gray-900 capitalize">{isToday ? 'Today' : dayStr}</p>
           <p className="text-xs text-gray-500">{dateStr}</p>
         </div>
         <button onClick={() => navigateDay(1)} className="p-2 rounded-xl bg-gray-100 active:bg-gray-200">
@@ -125,34 +121,30 @@ export default function HomePage() {
         </button>
       </div>
 
-      {/* Visit Section Header */}
       <div className="px-5 mt-4 mb-3 flex items-center justify-between">
         <h2 className="text-sm font-bold text-gray-900">
-          {visitsForDate.length} visite{visitsForDate.length !== 1 ? 's' : ''}
+          {visitsForDate.length} visit{visitsForDate.length !== 1 ? 's' : ''}
           {urgentCount > 0 && (
             <span className="ml-2 inline-flex items-center gap-1 text-xs text-red-600 bg-red-50 px-2 py-0.5 rounded-full font-medium">
-              <AlertTriangle size={10} /> {urgentCount} urgente{urgentCount > 1 ? 's' : ''}
+              <AlertTriangle size={10} /> {urgentCount} urgent
             </span>
           )}
         </h2>
         <button onClick={() => navigate('/new-visit')}
           className="flex items-center gap-1 text-xs text-velvet-dark bg-velvet-gold/20 px-2.5 py-1 rounded-full font-medium">
-          <Plus size={11} /> Ajouter
+          <Plus size={11} /> Add
         </button>
       </div>
 
-      {/* Store Visit Cards */}
       <div className="px-5 space-y-3">
         {loading ? (
-          Array(3).fill(0).map((_, i) => (
-            <div key={i} className="bg-white rounded-2xl h-28 animate-pulse" />
-          ))
+          Array(3).fill(0).map((_, i) => <div key={i} className="bg-white rounded-2xl h-24 animate-pulse" />)
         ) : visitsForDate.length === 0 ? (
           <div className="text-center py-12 text-gray-400">
             <MapPin size={32} className="mx-auto mb-2 text-gray-200" />
-            <p className="text-sm">Aucune visite ce jour</p>
+            <p className="text-sm">No visits scheduled</p>
             <button onClick={() => navigate('/new-visit')} className="mt-3 text-xs text-velvet-dark bg-velvet-gold/20 px-4 py-2 rounded-full font-medium">
-              + Planifier une visite
+              + Schedule a visit
             </button>
           </div>
         ) : (
@@ -161,27 +153,22 @@ export default function HomePage() {
               onClick={() => navigate(`/store/${visit.STORE_ID}`)}
               className="bg-white rounded-2xl overflow-hidden shadow-sm border border-gray-100 active:scale-[0.98] transition-transform cursor-pointer">
               <div className="flex">
-                <div className="w-28 h-28 relative flex-shrink-0">
-                  <img
-                    src={STORE_IMAGES[visit.RETAILER_NAME] || STORE_IMAGES['Sephora']}
-                    alt={visit.STORE_NAME || visit.RETAILER_NAME}
-                    className="w-full h-full object-cover"
-                  />
+                <div className={`w-24 h-24 relative flex-shrink-0 bg-gradient-to-br ${BRAND_COLORS[visit.RETAILER_NAME] || 'from-gray-800 to-gray-600'} flex items-center justify-center`}>
+                  <span className="text-white/90 text-[10px] font-bold text-center px-1 leading-tight">{visit.RETAILER_NAME}</span>
                   <div className={`absolute top-2 left-2 w-2.5 h-2.5 rounded-full ${statusColor(visit.STATUS)} shadow-sm`} />
                 </div>
-                <div className="flex-1 p-3.5 flex flex-col justify-between min-w-0">
+                <div className="flex-1 p-3 flex flex-col justify-between min-w-0">
                   <div>
                     <div className="flex items-center justify-between">
                       <h3 className="font-semibold text-sm text-gray-900 truncate">{visit.STORE_NAME || visit.RETAILER_NAME}</h3>
                       <ChevronRight size={16} className="text-gray-300 flex-shrink-0" />
                     </div>
                     <p className="text-xs text-gray-500 truncate mt-0.5">{visit.ADDRESS}</p>
-                    <p className="text-[10px] text-gray-400 mt-0.5">{visit.RETAILER_NAME} · {visit.STORE_TYPE}</p>
                   </div>
-                  <div className="flex items-center justify-between mt-2">
+                  <div className="flex items-center justify-between mt-1.5">
                     <div className="flex items-center gap-1.5 text-xs text-gray-400">
                       <Clock size={11} />
-                      <span>{new Date(visit.SCHEDULED_DATETIME).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}</span>
+                      <span>{new Date(visit.SCHEDULED_DATETIME).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })}</span>
                     </div>
                     <span className={`text-[10px] px-2 py-0.5 rounded-full font-semibold ${
                       visit.STATUS === 'Urgent' ? 'bg-red-100 text-red-700' :
@@ -190,7 +177,7 @@ export default function HomePage() {
                     }`}>{visit.STATUS}</span>
                   </div>
                   {visit.AI_RECOMMENDATION_NOTES && (
-                    <p className="text-[11px] text-velvet-accent mt-1.5 line-clamp-1 italic">
+                    <p className="text-[11px] text-velvet-accent mt-1 line-clamp-1 italic">
                       {visit.AI_RECOMMENDATION_NOTES}
                     </p>
                   )}
@@ -201,7 +188,6 @@ export default function HomePage() {
         )}
       </div>
 
-      {/* Bottom Navigation */}
       <nav className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-100 safe-bottom max-w-md mx-auto lg:max-w-none">
         <div className="flex items-center justify-around py-3">
           <button className="flex flex-col items-center gap-0.5 text-velvet-dark">
@@ -219,6 +205,10 @@ export default function HomePage() {
           <button onClick={() => navigate('/assistant')} className="flex flex-col items-center gap-0.5 text-gray-400">
             <MessageSquare size={20} />
             <span className="text-[10px] font-medium">Assistant</span>
+          </button>
+          <button onClick={() => navigate('/settings')} className="flex flex-col items-center gap-0.5 text-gray-400">
+            <Settings size={20} />
+            <span className="text-[10px] font-medium">Settings</span>
           </button>
         </div>
       </nav>

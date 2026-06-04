@@ -8,10 +8,9 @@ export default function CalendarView() {
   const [visits, setVisits] = useState([])
   const [currentMonth, setCurrentMonth] = useState(new Date())
   const [selectedDate, setSelectedDate] = useState(null)
-  const REP_ID = 1
 
   useEffect(() => {
-    getVisits(REP_ID).then(res => setVisits(res.data)).catch(() => {})
+    getVisits().then(res => setVisits(res.data)).catch(() => {})
   }, [])
 
   const year = currentMonth.getFullYear()
@@ -60,7 +59,7 @@ export default function CalendarView() {
             <ChevronLeft size={16} className="text-gray-600" />
           </button>
           <h2 className="text-base font-bold text-gray-900 capitalize">
-            {currentMonth.toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' })}
+            {currentMonth.toLocaleDateString('en-GB', { month: 'long', year: 'numeric' })}
           </h2>
           <button onClick={() => navigateMonth(1)} className="p-2 rounded-xl bg-gray-100 active:bg-gray-200">
             <ChevronRight size={16} className="text-gray-600" />
@@ -70,7 +69,7 @@ export default function CalendarView() {
         {/* Calendar Grid */}
         <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-4">
           <div className="grid grid-cols-7 gap-1 mb-2">
-            {['Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam', 'Dim'].map(d => (
+            {['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].map(d => (
               <div key={d} className="text-center text-[10px] font-semibold text-gray-400 uppercase py-1">{d}</div>
             ))}
           </div>
@@ -112,15 +111,15 @@ export default function CalendarView() {
           <div className="mt-5">
             <div className="flex items-center justify-between mb-3">
               <h3 className="text-sm font-bold text-gray-900">
-                {selectedVisits.length} visite{selectedVisits.length !== 1 ? 's' : ''} · {selectedDate} {currentMonth.toLocaleDateString('fr-FR', { month: 'short' })}
+                {selectedVisits.length} visit{selectedVisits.length !== 1 ? 's' : ''} · {selectedDate} {currentMonth.toLocaleDateString('en-GB', { month: 'short' })}
               </h3>
               <button onClick={() => navigate(`/new-visit`)}
                 className="flex items-center gap-1 text-xs text-velvet-dark bg-velvet-gold/20 px-2.5 py-1 rounded-full font-medium">
-                <Plus size={11} /> Ajouter
+                <Plus size={11} /> Add
               </button>
             </div>
             {selectedVisits.length === 0 ? (
-              <p className="text-sm text-gray-400 text-center py-6">Aucune visite ce jour</p>
+              <p className="text-sm text-gray-400 text-center py-6">No visits this day</p>
             ) : (
               <div className="space-y-2">
                 {selectedVisits.map(visit => (

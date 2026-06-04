@@ -73,7 +73,15 @@ app.get('/api/products', async (req, res) => {
 // ============================================================
 app.get('/api/stores', async (req, res) => {
   try {
-    const rows = await executeQuery('SELECT * FROM STORES ORDER BY RETAILER_NAME, REGION');
+    const { rep_id } = req.query;
+    let sql = 'SELECT * FROM STORES';
+    const binds = [];
+    if (rep_id) {
+      sql += ' WHERE REP_ID = ?';
+      binds.push(rep_id);
+    }
+    sql += ' ORDER BY STORE_NAME';
+    const rows = await executeQuery(sql, binds);
     res.json(rows);
   } catch (e) {
     res.status(500).json({ error: e.message });
@@ -504,6 +512,73 @@ app.post('/api/visits/:id/audit', async (req, res) => {
 app.post('/api/orders', async (req, res) => {
   try {
     res.json({ success: true, message: 'Order submitted (mock)' });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// ============================================================
+// DEMO RESET
+// ============================================================
+app.post('/api/demo/reset', async (req, res) => {
+  try {
+    const repId = req.body.rep_id || 1;
+    
+    await executeQuery('DELETE FROM VISITS WHERE REP_ID = ?', [repId]);
+
+    const storesSql = `SELECT STORE_ID, STORE_NAME FROM STORES WHERE REP_ID = ? ORDER BY RANDOM() LIMIT 30`;
+    const stores = await executeQuery(storesSql, [repId]);
+
+    const heroStore = await executeQuery(
+      `SELECT STORE_ID FROM STORES WHERE STORE_NAME = 'Sephora Clamart' AND REP_ID = ?`, [repId]
+    );
+    const heroStoreId = heroStore.length > 0 ? heroStore[0].STORE_ID : stores[0]?.STORE_ID;
+
+    const today = new Date().toISOString().split('T')[0];
+    const visits = [];
+
+    visits.push(`(${repId}, ${heroStoreId}, '${today} 09:00:00', 'Planned', 'Hero store — Push Oud Mystique end-cap. Negotiate 2nd facing.')`);
+
+    if (stores.length > 1) {
+      visits.push(`(${repId}, ${stores[1].STORE_ID}, '${today} 14:00:00', 'Planned', 'Afternoon visit — Audit planogram compliance and check stock.')`);
+    }
+
+    const notes = [
+      'Review NPD placement. Competitor gained facing.',
+      'Quarterly review prep. Bring sell-out data.',
+      'Full bay audit. Premium activation push.',
+      'High footfall location. Negotiate promo slot.',
+      'Sell-in negotiation for next quarter.',
+      'Check numerical distribution on new launches.',
+      'Market share recovery plan needed.',
+      'Introduce new Skincare range. Growth opportunity.',
+      'Monthly performance review with store manager.',
+      'Stock check and replenishment order.',
+      'Follow-up on previous corrective actions.',
+      'Summer campaign activation check.',
+    ];
+
+    for (let week = 0; week < 4; week++) {
+      const daysInWeek = [1, 2, 3, 4, 5];
+      for (const dayOffset of daysInWeek) {
+        const d = new Date();
+        d.setDate(d.getDate() + (week * 7) + dayOffset);
+        if (d.getDay() === 0 || d.getDay() === 6) continue;
+        
+        const storeIdx = (week * 5 + dayOffset) % stores.length;
+        const dateStr = d.toISOString().split('T')[0];
+        const hour = dayOffset % 2 === 0 ? '09:30:00' : '14:00:00';
+        const note = notes[(week * 5 + dayOffset) % notes.length];
+        const status = (week === 2 && dayOffset === 3) ? 'Urgent' : 'Planned';
+        
+        visits.push(`(${repId}, ${stores[storeIdx].STORE_ID}, '${dateStr} ${hour}', '${status}', '${note.replace(/'/g, "''")}')`);
+      }
+    }
+
+    const insertSql = `INSERT INTO VISITS (REP_ID, STORE_ID, SCHEDULED_DATETIME, STATUS, AI_RECOMMENDATION_NOTES) VALUES ${visits.join(',')}`;
+    await executeQuery(insertSql);
+
+    res.json({ success: true, visits_created: visits.length });
   } catch (e) {
     res.status(500).json({ error: e.message });
   }

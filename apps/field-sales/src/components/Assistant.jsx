@@ -109,7 +109,7 @@ export default function Assistant() {
             value={input}
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={(e) => e.key === 'Enter' && sendMessage(input)}
-            placeholder="Pose ta question..."
+            placeholder="Ask a question..."
             className="flex-1 px-4 py-3 bg-gray-50 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-velvet-gold/30 border border-gray-100"
           />
           <button onClick={() => sendMessage(input)} disabled={!input.trim()}

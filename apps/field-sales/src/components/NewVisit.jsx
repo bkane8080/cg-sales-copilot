@@ -53,7 +53,7 @@ export default function NewVisit() {
           <button onClick={() => navigate(-1)} className="p-2 -ml-2 rounded-xl hover:bg-white/10 text-white">
             <ArrowLeft size={20} />
           </button>
-          <h1 className="text-white font-bold text-lg">Nouvelle Visite</h1>
+          <h1 className="text-white font-bold text-lg">New Visit</h1>
         </div>
       </div>
 
@@ -62,7 +62,7 @@ export default function NewVisit() {
           <div className="w-16 h-16 bg-emerald-100 rounded-full flex items-center justify-center mx-auto mb-4">
             <Check size={32} className="text-emerald-600" />
           </div>
-          <h2 className="text-lg font-bold text-gray-900">Visite Créée</h2>
+          <h2 className="text-lg font-bold text-gray-900">Visit Created</h2>
           <p className="text-sm text-gray-500 mt-1">Redirection...</p>
         </div>
       ) : (
@@ -77,7 +77,7 @@ export default function NewVisit() {
                   <input
                     value={storeSearch}
                     onChange={(e) => setStoreSearch(e.target.value)}
-                    placeholder="Rechercher un magasin..."
+                    placeholder="Search for a store..."
                     className="w-full pl-9 pr-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-velvet-gold/30"
                   />
                 </div>
@@ -103,7 +103,7 @@ export default function NewVisit() {
                     <p className="text-xs text-gray-500">{selectedStoreData?.ADDRESS}</p>
                   </div>
                 </div>
-                <button onClick={() => setSelectedStore('')} className="text-xs text-velvet-accent font-medium">Changer</button>
+                <button onClick={() => setSelectedStore('')} className="text-xs text-velvet-accent font-medium">Change</button>
               </div>
             )}
           </div>
@@ -145,7 +145,7 @@ export default function NewVisit() {
 
           {/* Notes */}
           <div>
-            <label className="text-xs font-semibold text-gray-600 uppercase tracking-wider mb-2 block">Notes / Objectif</label>
+            <label className="text-xs font-semibold text-gray-600 uppercase tracking-wider mb-2 block">Notes / Objective</label>
             <textarea value={notes} onChange={(e) => setNotes(e.target.value)}
               placeholder="Ex: Négocier 2ème facing pour Oud Mystique..."
               rows={3}
@@ -155,7 +155,7 @@ export default function NewVisit() {
           {/* Submit */}
           <button onClick={handleSubmit} disabled={!selectedStore}
             className="w-full py-3.5 bg-velvet-dark text-velvet-gold rounded-xl text-sm font-semibold disabled:opacity-30 transition-all">
-            Créer la Visite
+            Create Visit
           </button>
         </div>
       )}

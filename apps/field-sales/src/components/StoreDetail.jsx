@@ -27,7 +27,7 @@ export default function StoreDetail() {
     sellOut: r.SELL_OUT_UNITS,
   }))
 
-  if (!store) return <div className="p-8 text-center text-gray-400 animate-pulse">Chargement...</div>
+  if (!store) return <div className="p-8 text-center text-gray-400 animate-pulse">Loading...</div>
 
   return (
     <div className="pb-20">
@@ -81,7 +81,7 @@ export default function StoreDetail() {
 
         {/* Contact Info */}
         <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100">
-          <h3 className="text-sm font-semibold text-gray-800 mb-2">Responsable Magasin</h3>
+          <h3 className="text-sm font-semibold text-gray-800 mb-2">Store Manager</h3>
           <p className="text-sm text-gray-600">{store.STORE_MANAGER_NAME}</p>
           <p className="text-xs text-gray-400 mt-1">{store.STORE_TYPE} · {store.REGION}</p>
         </div>
@@ -92,7 +92,7 @@ export default function StoreDetail() {
         <div className="flex gap-3">
           <button onClick={() => navigate(`/store/${id}/execution`)}
             className="flex-1 flex items-center justify-center gap-2 py-3 bg-velvet-dark text-velvet-gold rounded-xl font-semibold text-sm">
-            <ClipboardCheck size={16} /> Audit & Commande
+            <ClipboardCheck size={16} /> Audit & Order
           </button>
           <button onClick={() => navigate('/assistant')}
             className="w-12 h-12 bg-velvet-gold/10 border border-velvet-gold/30 rounded-xl flex items-center justify-center">

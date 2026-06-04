@@ -81,27 +81,27 @@ export default function POSDirectory() {
           {/* Store Info Card */}
           <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100">
             <h3 className="text-sm font-semibold text-gray-800 mb-3 flex items-center gap-2">
-              <Store size={14} className="text-velvet-gold" /> Informations
+              <Store size={14} className="text-velvet-gold" /> Information
             </h3>
             <div className="space-y-2.5">
               <div className="flex items-center gap-3">
                 <User size={14} className="text-gray-400" />
                 <div>
-                  <p className="text-xs text-gray-500">Responsable</p>
+                  <p className="text-xs text-gray-500">Store Manager</p>
                   <p className="text-sm font-medium text-gray-800">{selectedStore.STORE_MANAGER_NAME}</p>
                 </div>
               </div>
               <div className="flex items-center gap-3">
                 <MapPin size={14} className="text-gray-400" />
                 <div>
-                  <p className="text-xs text-gray-500">Adresse</p>
+                  <p className="text-xs text-gray-500">Address</p>
                   <p className="text-sm font-medium text-gray-800">{selectedStore.ADDRESS}</p>
                 </div>
               </div>
               <div className="flex items-center gap-3">
                 <Store size={14} className="text-gray-400" />
                 <div>
-                  <p className="text-xs text-gray-500">Enseigne / Type</p>
+                  <p className="text-xs text-gray-500">Brand / Type</p>
                   <p className="text-sm font-medium text-gray-800">{selectedStore.RETAILER_NAME} · {selectedStore.STORE_TYPE}</p>
                 </div>
               </div>
@@ -142,11 +142,11 @@ export default function POSDirectory() {
           <div className="flex gap-3">
             <button onClick={() => navigate(`/store/${selectedStore.STORE_ID}`)}
               className="flex-1 py-3 bg-velvet-dark text-velvet-gold rounded-xl text-sm font-semibold text-center">
-              Détail Complet
+              Full Detail
             </button>
             <button onClick={() => navigate(`/new-visit?store=${selectedStore.STORE_ID}`)}
               className="flex-1 py-3 bg-velvet-gold/10 text-velvet-dark border border-velvet-gold/30 rounded-xl text-sm font-semibold text-center">
-              Planifier Visite
+              Schedule Visit
             </button>
           </div>
         </div>
@@ -162,7 +162,7 @@ export default function POSDirectory() {
           <button onClick={() => navigate('/')} className="p-2 -ml-2 rounded-xl hover:bg-white/10 text-white">
             <ArrowLeft size={20} />
           </button>
-          <h1 className="text-white font-bold text-lg">Points de Vente</h1>
+          <h1 className="text-white font-bold text-lg">Points of Sale</h1>
         </div>
 
         <div className="relative">
@@ -170,21 +170,21 @@ export default function POSDirectory() {
           <input
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            placeholder="Rechercher par nom, enseigne, ville..."
+            placeholder="Search by name, brand, city..."
             className="w-full pl-10 pr-4 py-3 bg-white/10 border border-white/10 rounded-xl text-white text-sm placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-velvet-gold/30"
           />
         </div>
       </div>
 
       <div className="px-5 mt-4 space-y-2">
-        <p className="text-xs text-gray-500 mb-2">{filteredStores.length} point{filteredStores.length !== 1 ? 's' : ''} de vente</p>
+        <p className="text-xs text-gray-500 mb-2">{filteredStores.length} point{filteredStores.length !== 1 ? 's' : ''} of sale</p>
         
         {loading ? (
           Array(4).fill(0).map((_, i) => <div key={i} className="bg-white rounded-xl h-20 animate-pulse" />)
         ) : filteredStores.length === 0 ? (
           <div className="text-center py-12 text-gray-400">
             <Store size={32} className="mx-auto mb-2 text-gray-200" />
-            <p className="text-sm">Aucun résultat</p>
+            <p className="text-sm">No results</p>
           </div>
         ) : (
           filteredStores.map(store => (

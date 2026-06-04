@@ -64,7 +64,7 @@ export default function RetailExecution() {
           className={`flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-medium transition-all ${
             tab === 'order' ? 'bg-velvet-dark text-velvet-gold' : 'bg-gray-100 text-gray-600'
           }`}>
-          <ShoppingCart size={15} /> Commande
+          <ShoppingCart size={15} /> Order
         </button>
       </div>
 
@@ -109,7 +109,7 @@ export default function RetailExecution() {
             className={`w-full py-3.5 rounded-xl text-sm font-semibold transition-all ${
               submitted ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' : 'bg-velvet-dark text-velvet-gold'
             }`}>
-            {submitted ? <span className="flex items-center justify-center gap-2"><Check size={16} /> Audit Soumis</span> : 'Soumettre l\'Audit'}
+            {submitted ? <span className="flex items-center justify-center gap-2"><Check size={16} /> Audit Submitted</span> : 'Submit Audit'}
           </button>
         </div>
       )}
@@ -143,7 +143,7 @@ export default function RetailExecution() {
               <span className="text-xl font-bold">{orderItems.reduce((s, i) => s + i.qty, 0)}</span>
             </div>
             <button className="w-full py-3 bg-velvet-gold text-velvet-dark rounded-xl font-semibold text-sm">
-              Valider la Commande
+              Confirm Order
             </button>
           </div>
         </div>

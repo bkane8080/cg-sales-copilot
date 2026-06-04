@@ -7,6 +7,7 @@ import Assistant from './components/Assistant'
 import POSDirectory from './components/POSDirectory'
 import NewVisit from './components/NewVisit'
 import CalendarView from './components/CalendarView'
+import SettingsPage from './components/SettingsPage'
 
 function App() {
   return (
@@ -20,6 +21,7 @@ function App() {
           <Route path="/pos" element={<POSDirectory />} />
           <Route path="/new-visit" element={<NewVisit />} />
           <Route path="/calendar" element={<CalendarView />} />
+          <Route path="/settings" element={<SettingsPage />} />
         </Routes>
       </div>
     </Router>
