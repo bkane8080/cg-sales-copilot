@@ -13,12 +13,14 @@ app.use(express.json({ limit: '10mb' }));
 const PORT = process.env.PORT || 8080;
 
 const SF_CONFIG = {
-  account: process.env.SNOWFLAKE_ACCOUNT,
-  username: process.env.SNOWFLAKE_USER,
-  password: process.env.SNOWFLAKE_PASSWORD,
+  account: process.env.SNOWFLAKE_ACCOUNT || 'SFSEEUROPE-BKANE_AWS3',
+  username: process.env.SNOWFLAKE_USER || 'BKANE',
+  password: process.env.SNOWFLAKE_PASSWORD || undefined,
+  authenticator: process.env.SNOWFLAKE_AUTHENTICATOR || undefined,
   warehouse: process.env.SNOWFLAKE_WAREHOUSE || 'COMPUTE_WH',
   database: 'VELVET_FB_DEMO',
-  schema: 'WHOLESALE_APP'
+  schema: 'WHOLESALE_APP',
+  role: process.env.SNOWFLAKE_ROLE || 'ACCOUNTADMIN'
 };
 
 const AZURE_STT_KEY = process.env.AZURE_SPEECH_KEY;
@@ -136,7 +138,7 @@ app.get('/api/visits', async (req, res) => {
   try {
     const { rep_id } = req.query;
     let sql = `
-      SELECT v.*, s.RETAILER_NAME, s.ADDRESS, s.REGION, s.STORE_MANAGER_NAME
+      SELECT v.*, s.RETAILER_NAME, s.STORE_NAME, s.STORE_TYPE, s.ADDRESS, s.REGION, s.STORE_MANAGER_NAME
       FROM VISITS v
       JOIN STORES s ON v.STORE_ID = s.STORE_ID
     `;

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { MapPin, Clock, AlertTriangle, CheckCircle, ChevronRight, MessageSquare, TrendingUp, Target, BarChart3, Store, Plus } from 'lucide-react'
+import { MapPin, Clock, AlertTriangle, CheckCircle, ChevronRight, ChevronLeft, MessageSquare, TrendingUp, Target, BarChart3, Store, Plus } from 'lucide-react'
 import { getVisits, getStoreKPIs } from '../api'
 
 const STORE_IMAGES = {
@@ -15,6 +15,7 @@ export default function HomePage() {
   const [visits, setVisits] = useState([])
   const [heroKpis, setHeroKpis] = useState(null)
   const [loading, setLoading] = useState(true)
+  const [selectedDate, setSelectedDate] = useState(new Date())
   const navigate = useNavigate()
   const REP_ID = 1
 
@@ -23,7 +24,7 @@ export default function HomePage() {
       .then(res => {
         setVisits(res.data)
         if (res.data.length > 0) {
-          getStoreKPIs(res.data[0].STORE_ID).then(k => setHeroKpis(k.data))
+          getStoreKPIs(res.data[0].STORE_ID).then(k => setHeroKpis(k.data)).catch(() => {})
         }
         setLoading(false)
       })
@@ -31,17 +32,37 @@ export default function HomePage() {
   }, [])
 
   const today = new Date()
-  const dateStr = today.toLocaleDateString('fr-FR', { day: 'numeric', month: 'short', year: 'numeric' })
-  const dayStr = today.toLocaleDateString('fr-FR', { weekday: 'long' })
+  const dateStr = selectedDate.toLocaleDateString('fr-FR', { day: 'numeric', month: 'short', year: 'numeric' })
+  const dayStr = selectedDate.toLocaleDateString('fr-FR', { weekday: 'long' })
+  const isToday = selectedDate.toDateString() === today.toDateString()
 
-  const todayVisits = visits.filter(v => {
-    const d = new Date(v.SCHEDULED_DATETIME)
-    return d.toDateString() === today.toDateString()
+  const visitsForDate = visits.filter(v => {
+    const dateStr = v.SCHEDULED_DATETIME.split(' ')[0].split('T')[0]
+    const selStr = selectedDate.toISOString().split('T')[0]
+    return dateStr === selStr
   })
-  const displayVisits = todayVisits.length > 0 ? todayVisits : visits.slice(0, 6)
 
   const completedCount = visits.filter(v => v.STATUS === 'Completed').length
   const urgentCount = visits.filter(v => v.STATUS === 'Urgent').length
+
+  const navigateDay = (delta) => {
+    const d = new Date(selectedDate)
+    d.setDate(d.getDate() + delta)
+    setSelectedDate(d)
+  }
+
+  const getDaysWithVisits = () => {
+    const days = []
+    const start = new Date(today)
+    for (let i = 0; i < 14; i++) {
+      const d = new Date(start)
+      d.setDate(d.getDate() + i)
+      const dStr = d.toISOString().split('T')[0]
+      const count = visits.filter(v => (v.SCHEDULED_DATETIME.split(' ')[0].split('T')[0]) === dStr).length
+      days.push({ date: d, count })
+    }
+    return days
+  }
 
   const statusColor = (status) => ({
     Completed: 'bg-emerald-500',
@@ -55,17 +76,12 @@ export default function HomePage() {
       <div className="bg-velvet-dark px-5 pt-12 pb-6 rounded-b-3xl">
         <div className="flex items-center justify-between mb-4">
           <div>
-            <p className="text-gray-400 text-xs uppercase tracking-wider">{dateStr}</p>
-            <p className="text-gray-500 text-xs capitalize">{dayStr}</p>
+            <h1 className="text-white text-xl font-bold">Bonjour, Eric</h1>
+            <p className="text-gray-400 text-sm mt-0.5">{visits.length} visites planifiées · Paris Ouest</p>
           </div>
           <div className="w-9 h-9 rounded-full bg-velvet-gold flex items-center justify-center">
             <span className="text-velvet-dark font-bold text-xs">ES</span>
           </div>
-        </div>
-
-        <div className="mb-5">
-          <h1 className="text-white text-xl font-bold">Bonjour, Eric</h1>
-          <p className="text-gray-400 text-sm mt-0.5">{visits.length} visites planifiées · Paris Ouest</p>
         </div>
 
         {/* KPI Cards - 2x2 Grid */}
@@ -108,20 +124,54 @@ export default function HomePage() {
         </div>
       </div>
 
-      {/* Section Title */}
-      <div className="px-5 mt-6 mb-3 flex items-center justify-between">
-        <h2 className="text-base font-bold text-gray-900">Visites du jour</h2>
-        <div className="flex items-center gap-2">
-          {urgentCount > 0 && (
-            <span className="flex items-center gap-1 text-xs text-red-600 bg-red-50 px-2.5 py-1 rounded-full font-medium">
-              <AlertTriangle size={11} /> {urgentCount}
-            </span>
-          )}
-          <button onClick={() => navigate('/new-visit')}
-            className="flex items-center gap-1 text-xs text-velvet-dark bg-velvet-gold/20 px-2.5 py-1 rounded-full font-medium">
-            <Plus size={11} /> Ajouter
+      {/* Day Navigation */}
+      <div className="px-5 mt-5">
+        <div className="flex items-center justify-between mb-3">
+          <button onClick={() => navigateDay(-1)} className="p-2 rounded-xl bg-gray-100 active:bg-gray-200">
+            <ChevronLeft size={16} className="text-gray-600" />
+          </button>
+          <div className="text-center">
+            <p className="text-sm font-bold text-gray-900 capitalize">{isToday ? "Aujourd'hui" : dayStr}</p>
+            <p className="text-xs text-gray-500">{dateStr}</p>
+          </div>
+          <button onClick={() => navigateDay(1)} className="p-2 rounded-xl bg-gray-100 active:bg-gray-200">
+            <ChevronRight size={16} className="text-gray-600" />
           </button>
         </div>
+
+        {/* Day pills */}
+        <div className="flex gap-1.5 overflow-x-auto scrollbar-hide pb-2 -mx-1 px-1">
+          {getDaysWithVisits().map(({ date, count }, i) => {
+            const isSelected = date.toDateString() === selectedDate.toDateString()
+            const isTodayPill = date.toDateString() === today.toDateString()
+            return (
+              <button key={i} onClick={() => setSelectedDate(new Date(date))}
+                className={`flex-shrink-0 flex flex-col items-center w-11 py-1.5 rounded-xl transition-all ${
+                  isSelected ? 'bg-velvet-dark text-white' : 'bg-gray-50 text-gray-600'
+                }`}>
+                <span className="text-[9px] uppercase font-medium">{date.toLocaleDateString('fr-FR', { weekday: 'short' }).slice(0, 3)}</span>
+                <span className={`text-sm font-bold ${isSelected ? 'text-velvet-gold' : ''}`}>{date.getDate()}</span>
+                {count > 0 && <div className={`w-1.5 h-1.5 rounded-full mt-0.5 ${isSelected ? 'bg-velvet-gold' : 'bg-velvet-accent'}`} />}
+              </button>
+            )
+          })}
+        </div>
+      </div>
+
+      {/* Visit Section Header */}
+      <div className="px-5 mt-4 mb-3 flex items-center justify-between">
+        <h2 className="text-sm font-bold text-gray-900">
+          {visitsForDate.length} visite{visitsForDate.length !== 1 ? 's' : ''}
+          {urgentCount > 0 && isToday && (
+            <span className="ml-2 inline-flex items-center gap-1 text-xs text-red-600 bg-red-50 px-2 py-0.5 rounded-full font-medium">
+              <AlertTriangle size={10} /> {urgentCount} urgente{urgentCount > 1 ? 's' : ''}
+            </span>
+          )}
+        </h2>
+        <button onClick={() => navigate('/new-visit')}
+          className="flex items-center gap-1 text-xs text-velvet-dark bg-velvet-gold/20 px-2.5 py-1 rounded-full font-medium">
+          <Plus size={11} /> Ajouter
+        </button>
       </div>
 
       {/* Store Visit Cards */}
@@ -130,13 +180,16 @@ export default function HomePage() {
           Array(3).fill(0).map((_, i) => (
             <div key={i} className="bg-white rounded-2xl h-28 animate-pulse" />
           ))
-        ) : displayVisits.length === 0 ? (
+        ) : visitsForDate.length === 0 ? (
           <div className="text-center py-12 text-gray-400">
             <MapPin size={32} className="mx-auto mb-2 text-gray-200" />
-            <p className="text-sm">Aucune visite programmée</p>
+            <p className="text-sm">Aucune visite ce jour</p>
+            <button onClick={() => navigate('/new-visit')} className="mt-3 text-xs text-velvet-dark bg-velvet-gold/20 px-4 py-2 rounded-full font-medium">
+              + Planifier une visite
+            </button>
           </div>
         ) : (
-          displayVisits.map((visit) => (
+          visitsForDate.map((visit) => (
             <div key={visit.VISIT_ID}
               onClick={() => navigate(`/store/${visit.STORE_ID}`)}
               className="bg-white rounded-2xl overflow-hidden shadow-sm border border-gray-100 active:scale-[0.98] transition-transform cursor-pointer">
@@ -144,7 +197,7 @@ export default function HomePage() {
                 <div className="w-28 h-28 relative flex-shrink-0">
                   <img
                     src={STORE_IMAGES[visit.RETAILER_NAME] || STORE_IMAGES['Sephora']}
-                    alt={visit.RETAILER_NAME}
+                    alt={visit.STORE_NAME || visit.RETAILER_NAME}
                     className="w-full h-full object-cover"
                   />
                   <div className={`absolute top-2 left-2 w-2.5 h-2.5 rounded-full ${statusColor(visit.STATUS)} shadow-sm`} />
@@ -152,10 +205,11 @@ export default function HomePage() {
                 <div className="flex-1 p-3.5 flex flex-col justify-between min-w-0">
                   <div>
                     <div className="flex items-center justify-between">
-                      <h3 className="font-semibold text-sm text-gray-900 truncate">{visit.RETAILER_NAME}</h3>
+                      <h3 className="font-semibold text-sm text-gray-900 truncate">{visit.STORE_NAME || visit.RETAILER_NAME}</h3>
                       <ChevronRight size={16} className="text-gray-300 flex-shrink-0" />
                     </div>
                     <p className="text-xs text-gray-500 truncate mt-0.5">{visit.ADDRESS}</p>
+                    <p className="text-[10px] text-gray-400 mt-0.5">{visit.RETAILER_NAME} · {visit.STORE_TYPE}</p>
                   </div>
                   <div className="flex items-center justify-between mt-2">
                     <div className="flex items-center gap-1.5 text-xs text-gray-400">
