@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { MapPin, Clock, AlertTriangle, CheckCircle, ChevronRight, MessageSquare, TrendingUp, TrendingDown, Target, BarChart3 } from 'lucide-react'
+import { MapPin, Clock, AlertTriangle, CheckCircle, ChevronRight, MessageSquare, TrendingUp, Target, BarChart3, Store, Plus } from 'lucide-react'
 import { getVisits, getStoreKPIs } from '../api'
 
 const STORE_IMAGES = {
@@ -58,21 +58,19 @@ export default function HomePage() {
             <p className="text-gray-400 text-xs uppercase tracking-wider">{dateStr}</p>
             <p className="text-gray-500 text-xs capitalize">{dayStr}</p>
           </div>
-          <div className="flex items-center gap-2">
-            <div className="w-9 h-9 rounded-full bg-velvet-gold flex items-center justify-center">
-              <span className="text-velvet-dark font-bold text-xs">ES</span>
-            </div>
+          <div className="w-9 h-9 rounded-full bg-velvet-gold flex items-center justify-center">
+            <span className="text-velvet-dark font-bold text-xs">ES</span>
           </div>
         </div>
 
         <div className="mb-5">
           <h1 className="text-white text-xl font-bold">Bonjour, Eric</h1>
-          <p className="text-gray-400 text-sm mt-0.5">{visits.length} visites cette semaine · Paris Ouest</p>
+          <p className="text-gray-400 text-sm mt-0.5">{visits.length} visites planifiées · Paris Ouest</p>
         </div>
 
-        {/* KPI Cards Row */}
-        <div className="flex gap-3 overflow-x-auto scrollbar-hide pb-2 -mx-1 px-1">
-          <div className="min-w-[120px] bg-white/10 backdrop-blur-sm rounded-2xl p-3.5 border border-white/10">
+        {/* KPI Cards - 2x2 Grid */}
+        <div className="grid grid-cols-2 gap-3">
+          <div className="bg-white/10 backdrop-blur-sm rounded-2xl p-3.5 border border-white/10">
             <div className="flex items-center justify-between mb-1">
               <span className="text-[10px] text-gray-400 uppercase font-medium">Sell-Out</span>
               <TrendingUp size={12} className="text-emerald-400" />
@@ -81,7 +79,7 @@ export default function HomePage() {
             <p className="text-gray-500 text-[10px]">u/semaine</p>
           </div>
 
-          <div className="min-w-[120px] bg-white/10 backdrop-blur-sm rounded-2xl p-3.5 border border-white/10">
+          <div className="bg-white/10 backdrop-blur-sm rounded-2xl p-3.5 border border-white/10">
             <div className="flex items-center justify-between mb-1">
               <span className="text-[10px] text-gray-400 uppercase font-medium">DN</span>
               <Target size={12} className="text-velvet-gold" />
@@ -90,7 +88,7 @@ export default function HomePage() {
             <p className="text-gray-500 text-[10px]">distribution</p>
           </div>
 
-          <div className="min-w-[120px] bg-white/10 backdrop-blur-sm rounded-2xl p-3.5 border border-white/10">
+          <div className="bg-white/10 backdrop-blur-sm rounded-2xl p-3.5 border border-white/10">
             <div className="flex items-center justify-between mb-1">
               <span className="text-[10px] text-gray-400 uppercase font-medium">Visites</span>
               <CheckCircle size={12} className="text-emerald-400" />
@@ -99,7 +97,7 @@ export default function HomePage() {
             <p className="text-gray-500 text-[10px]">complétées</p>
           </div>
 
-          <div className="min-w-[120px] bg-white/10 backdrop-blur-sm rounded-2xl p-3.5 border border-white/10">
+          <div className="bg-white/10 backdrop-blur-sm rounded-2xl p-3.5 border border-white/10">
             <div className="flex items-center justify-between mb-1">
               <span className="text-[10px] text-gray-400 uppercase font-medium">PDM</span>
               <BarChart3 size={12} className="text-blue-400" />
@@ -112,12 +110,18 @@ export default function HomePage() {
 
       {/* Section Title */}
       <div className="px-5 mt-6 mb-3 flex items-center justify-between">
-        <h2 className="text-base font-bold text-gray-900">Visites</h2>
-        {urgentCount > 0 && (
-          <span className="flex items-center gap-1 text-xs text-red-600 bg-red-50 px-2.5 py-1 rounded-full font-medium">
-            <AlertTriangle size={11} /> {urgentCount} urgente{urgentCount > 1 ? 's' : ''}
-          </span>
-        )}
+        <h2 className="text-base font-bold text-gray-900">Visites du jour</h2>
+        <div className="flex items-center gap-2">
+          {urgentCount > 0 && (
+            <span className="flex items-center gap-1 text-xs text-red-600 bg-red-50 px-2.5 py-1 rounded-full font-medium">
+              <AlertTriangle size={11} /> {urgentCount}
+            </span>
+          )}
+          <button onClick={() => navigate('/new-visit')}
+            className="flex items-center gap-1 text-xs text-velvet-dark bg-velvet-gold/20 px-2.5 py-1 rounded-full font-medium">
+            <Plus size={11} /> Ajouter
+          </button>
+        </div>
       </div>
 
       {/* Store Visit Cards */}
@@ -132,12 +136,11 @@ export default function HomePage() {
             <p className="text-sm">Aucune visite programmée</p>
           </div>
         ) : (
-          displayVisits.map((visit, idx) => (
+          displayVisits.map((visit) => (
             <div key={visit.VISIT_ID}
               onClick={() => navigate(`/store/${visit.STORE_ID}`)}
               className="bg-white rounded-2xl overflow-hidden shadow-sm border border-gray-100 active:scale-[0.98] transition-transform cursor-pointer">
               <div className="flex">
-                {/* Store Image */}
                 <div className="w-28 h-28 relative flex-shrink-0">
                   <img
                     src={STORE_IMAGES[visit.RETAILER_NAME] || STORE_IMAGES['Sephora']}
@@ -146,8 +149,6 @@ export default function HomePage() {
                   />
                   <div className={`absolute top-2 left-2 w-2.5 h-2.5 rounded-full ${statusColor(visit.STATUS)} shadow-sm`} />
                 </div>
-
-                {/* Content */}
                 <div className="flex-1 p-3.5 flex flex-col justify-between min-w-0">
                   <div>
                     <div className="flex items-center justify-between">
@@ -186,13 +187,17 @@ export default function HomePage() {
             <MapPin size={20} />
             <span className="text-[10px] font-medium">Route</span>
           </button>
+          <button onClick={() => navigate('/pos')} className="flex flex-col items-center gap-0.5 text-gray-400">
+            <Store size={20} />
+            <span className="text-[10px] font-medium">POS</span>
+          </button>
           <button onClick={() => navigate('/assistant')} className="flex flex-col items-center gap-0.5 text-gray-400">
             <MessageSquare size={20} />
             <span className="text-[10px] font-medium">Assistant</span>
           </button>
-          <button className="flex flex-col items-center gap-0.5 text-gray-400">
-            <BarChart3 size={20} />
-            <span className="text-[10px] font-medium">KPIs</span>
+          <button onClick={() => navigate('/new-visit')} className="flex flex-col items-center gap-0.5 text-gray-400">
+            <Plus size={20} />
+            <span className="text-[10px] font-medium">Visite</span>
           </button>
         </div>
       </nav>

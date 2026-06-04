@@ -167,6 +167,26 @@ app.post('/api/visits/urgent', async (req, res) => {
   }
 });
 
+app.post('/api/visits', async (req, res) => {
+  try {
+    const { rep_id, store_id, scheduled_datetime, status, notes } = req.body;
+    const sql = `
+      INSERT INTO VISITS (REP_ID, STORE_ID, SCHEDULED_DATETIME, STATUS, AI_RECOMMENDATION_NOTES)
+      VALUES (?, ?, ?, ?, ?)
+    `;
+    await executeQuery(sql, [
+      rep_id || 1,
+      store_id,
+      scheduled_datetime,
+      status || 'Planned',
+      notes || ''
+    ]);
+    res.json({ success: true });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
 // ============================================================
 // FIELD SALES
 // ============================================================

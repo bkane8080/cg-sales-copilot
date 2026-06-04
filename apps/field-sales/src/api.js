@@ -10,5 +10,6 @@ export const getVisits = (repId) => api.get('/api/visits', { params: { rep_id: r
 export const getProducts = () => api.get('/api/products')
 export const auditVisit = (id, score) => api.post(`/api/visits/${id}/audit`, { compliance_score: score })
 export const chatWithAgent = (message, storeId) => api.post('/api/agent/interact', { message, store_id: storeId })
+export const createVisit = (data) => api.post('/api/visits', data)
 
 export default api
