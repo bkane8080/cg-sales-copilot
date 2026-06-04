@@ -6,6 +6,7 @@ import RetailExecution from './components/RetailExecution'
 import Assistant from './components/Assistant'
 import POSDirectory from './components/POSDirectory'
 import NewVisit from './components/NewVisit'
+import CalendarView from './components/CalendarView'
 
 function App() {
   return (
@@ -18,6 +19,7 @@ function App() {
           <Route path="/assistant" element={<Assistant />} />
           <Route path="/pos" element={<POSDirectory />} />
           <Route path="/new-visit" element={<NewVisit />} />
+          <Route path="/calendar" element={<CalendarView />} />
         </Routes>
       </div>
     </Router>

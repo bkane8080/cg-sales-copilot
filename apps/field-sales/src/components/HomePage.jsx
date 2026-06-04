@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { MapPin, Clock, AlertTriangle, CheckCircle, ChevronRight, ChevronLeft, MessageSquare, TrendingUp, Target, BarChart3, Store, Plus } from 'lucide-react'
+import { MapPin, Clock, AlertTriangle, CheckCircle, ChevronRight, ChevronLeft, MessageSquare, TrendingUp, Target, BarChart3, Store, Calendar, Plus } from 'lucide-react'
 import { getVisits, getStoreKPIs } from '../api'
 
 const STORE_IMAGES = {
@@ -32,36 +32,23 @@ export default function HomePage() {
   }, [])
 
   const today = new Date()
-  const dateStr = selectedDate.toLocaleDateString('fr-FR', { day: 'numeric', month: 'short', year: 'numeric' })
+  const dateStr = selectedDate.toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' })
   const dayStr = selectedDate.toLocaleDateString('fr-FR', { weekday: 'long' })
-  const isToday = selectedDate.toDateString() === today.toDateString()
+  const isToday = selectedDate.toISOString().split('T')[0] === today.toISOString().split('T')[0]
 
   const visitsForDate = visits.filter(v => {
-    const dateStr = v.SCHEDULED_DATETIME.split(' ')[0].split('T')[0]
+    const vDate = v.SCHEDULED_DATETIME.split(' ')[0].split('T')[0]
     const selStr = selectedDate.toISOString().split('T')[0]
-    return dateStr === selStr
+    return vDate === selStr
   })
 
   const completedCount = visits.filter(v => v.STATUS === 'Completed').length
-  const urgentCount = visits.filter(v => v.STATUS === 'Urgent').length
+  const urgentCount = visitsForDate.filter(v => v.STATUS === 'Urgent').length
 
   const navigateDay = (delta) => {
     const d = new Date(selectedDate)
     d.setDate(d.getDate() + delta)
     setSelectedDate(d)
-  }
-
-  const getDaysWithVisits = () => {
-    const days = []
-    const start = new Date(today)
-    for (let i = 0; i < 14; i++) {
-      const d = new Date(start)
-      d.setDate(d.getDate() + i)
-      const dStr = d.toISOString().split('T')[0]
-      const count = visits.filter(v => (v.SCHEDULED_DATETIME.split(' ')[0].split('T')[0]) === dStr).length
-      days.push({ date: d, count })
-    }
-    return days
   }
 
   const statusColor = (status) => ({
@@ -124,45 +111,25 @@ export default function HomePage() {
         </div>
       </div>
 
-      {/* Day Navigation */}
-      <div className="px-5 mt-5">
-        <div className="flex items-center justify-between mb-3">
-          <button onClick={() => navigateDay(-1)} className="p-2 rounded-xl bg-gray-100 active:bg-gray-200">
-            <ChevronLeft size={16} className="text-gray-600" />
-          </button>
-          <div className="text-center">
-            <p className="text-sm font-bold text-gray-900 capitalize">{isToday ? "Aujourd'hui" : dayStr}</p>
-            <p className="text-xs text-gray-500">{dateStr}</p>
-          </div>
-          <button onClick={() => navigateDay(1)} className="p-2 rounded-xl bg-gray-100 active:bg-gray-200">
-            <ChevronRight size={16} className="text-gray-600" />
-          </button>
+      {/* Day Navigation - Simple prev/next */}
+      <div className="px-5 mt-5 flex items-center justify-between">
+        <button onClick={() => navigateDay(-1)} className="p-2 rounded-xl bg-gray-100 active:bg-gray-200">
+          <ChevronLeft size={16} className="text-gray-600" />
+        </button>
+        <div className="text-center">
+          <p className="text-sm font-bold text-gray-900 capitalize">{isToday ? "Aujourd'hui" : dayStr}</p>
+          <p className="text-xs text-gray-500">{dateStr}</p>
         </div>
-
-        {/* Day pills */}
-        <div className="flex gap-1.5 overflow-x-auto scrollbar-hide pb-2 -mx-1 px-1">
-          {getDaysWithVisits().map(({ date, count }, i) => {
-            const isSelected = date.toDateString() === selectedDate.toDateString()
-            const isTodayPill = date.toDateString() === today.toDateString()
-            return (
-              <button key={i} onClick={() => setSelectedDate(new Date(date))}
-                className={`flex-shrink-0 flex flex-col items-center w-11 py-1.5 rounded-xl transition-all ${
-                  isSelected ? 'bg-velvet-dark text-white' : 'bg-gray-50 text-gray-600'
-                }`}>
-                <span className="text-[9px] uppercase font-medium">{date.toLocaleDateString('fr-FR', { weekday: 'short' }).slice(0, 3)}</span>
-                <span className={`text-sm font-bold ${isSelected ? 'text-velvet-gold' : ''}`}>{date.getDate()}</span>
-                {count > 0 && <div className={`w-1.5 h-1.5 rounded-full mt-0.5 ${isSelected ? 'bg-velvet-gold' : 'bg-velvet-accent'}`} />}
-              </button>
-            )
-          })}
-        </div>
+        <button onClick={() => navigateDay(1)} className="p-2 rounded-xl bg-gray-100 active:bg-gray-200">
+          <ChevronRight size={16} className="text-gray-600" />
+        </button>
       </div>
 
       {/* Visit Section Header */}
       <div className="px-5 mt-4 mb-3 flex items-center justify-between">
         <h2 className="text-sm font-bold text-gray-900">
           {visitsForDate.length} visite{visitsForDate.length !== 1 ? 's' : ''}
-          {urgentCount > 0 && isToday && (
+          {urgentCount > 0 && (
             <span className="ml-2 inline-flex items-center gap-1 text-xs text-red-600 bg-red-50 px-2 py-0.5 rounded-full font-medium">
               <AlertTriangle size={10} /> {urgentCount} urgente{urgentCount > 1 ? 's' : ''}
             </span>
@@ -245,13 +212,13 @@ export default function HomePage() {
             <Store size={20} />
             <span className="text-[10px] font-medium">POS</span>
           </button>
+          <button onClick={() => navigate('/calendar')} className="flex flex-col items-center gap-0.5 text-gray-400">
+            <Calendar size={20} />
+            <span className="text-[10px] font-medium">Agenda</span>
+          </button>
           <button onClick={() => navigate('/assistant')} className="flex flex-col items-center gap-0.5 text-gray-400">
             <MessageSquare size={20} />
             <span className="text-[10px] font-medium">Assistant</span>
-          </button>
-          <button onClick={() => navigate('/new-visit')} className="flex flex-col items-center gap-0.5 text-gray-400">
-            <Plus size={20} />
-            <span className="text-[10px] font-medium">Visite</span>
           </button>
         </div>
       </nav>
