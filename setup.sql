@@ -1,5 +1,7 @@
 -- ============================================================
--- Velvet F&B Wholesale Companion - Database Setup
+-- Velvet F&B Wholesale Companion - Database Setup (LEGACY)
+-- NOTE: Use setup_full.sql for complete deployment including
+-- all tables (audits, cases, news) and proper store generation.
 -- ============================================================
 
 CREATE DATABASE IF NOT EXISTS VELVET_FB_DEMO;

@@ -1,0 +1,310 @@
+name: field_sales_analytics
+description: >
+  Semantic model for Velvet F&B field sales analytics. Covers store visits, audits, 
+  sales performance, cases, and product catalog for CPG cosmetics field sales reps.
+
+tables:
+  - name: stores
+    description: Point-of-sale (POS) stores managed by field sales reps
+    base_table:
+      database: VELVET_FB_DEMO
+      schema: WHOLESALE_APP
+      table: STORES
+    dimensions:
+      - name: store_id
+        expr: STORE_ID
+        description: Unique store identifier
+        data_type: NUMBER
+      - name: retailer_name
+        expr: RETAILER_NAME
+        description: "Retailer brand name (Sephora, Marionnaud, Nocibé)"
+        data_type: TEXT
+        sample_values: ["Sephora", "Marionnaud", "Nocibé"]
+      - name: store_name
+        expr: STORE_NAME
+        description: Full store display name
+        data_type: TEXT
+      - name: store_type
+        expr: STORE_TYPE
+        description: "Store format (Premium, Standard, Flagship, Corner)"
+        data_type: TEXT
+        sample_values: ["Premium", "Standard", "Flagship"]
+      - name: address
+        expr: ADDRESS
+        description: Store physical address
+        data_type: TEXT
+      - name: region
+        expr: REGION
+        description: Geographic territory or region
+        data_type: TEXT
+      - name: store_manager_name
+        expr: STORE_MANAGER_NAME
+        description: Name of the store manager
+        data_type: TEXT
+      - name: rep_id
+        expr: REP_ID
+        description: Sales rep assigned to this store
+        data_type: NUMBER
+
+  - name: visits
+    description: Scheduled and completed store visits by sales reps
+    base_table:
+      database: VELVET_FB_DEMO
+      schema: WHOLESALE_APP
+      table: VISITS
+    dimensions:
+      - name: visit_id
+        expr: VISIT_ID
+        description: Unique visit identifier
+        data_type: NUMBER
+      - name: rep_id
+        expr: REP_ID
+        description: Sales rep who made or will make the visit
+        data_type: NUMBER
+      - name: store_id
+        expr: STORE_ID
+        description: Store being visited
+        data_type: NUMBER
+      - name: status
+        expr: STATUS
+        description: "Visit status: Planned, Completed, or Urgent"
+        data_type: TEXT
+        sample_values: ["Planned", "Completed", "Urgent"]
+      - name: notes
+        expr: AI_RECOMMENDATION_NOTES
+        description: Visit notes, observations, objectives, and AI recommendations
+        data_type: TEXT
+    time_dimensions:
+      - name: scheduled_datetime
+        expr: SCHEDULED_DATETIME
+        description: Scheduled date and time of the visit
+        data_type: TIMESTAMP_NTZ
+    facts:
+      - name: compliance_score
+        expr: AUDIT_PLANOGRAM_COMPLIANCE_SCORE
+        description: Planogram compliance percentage from the visit audit (0-100)
+        data_type: FLOAT
+
+  - name: performance
+    description: Daily store performance metrics (sell-in, sell-out, market share)
+    base_table:
+      database: VELVET_FB_DEMO
+      schema: WHOLESALE_APP
+      table: STORE_PERFORMANCE
+    dimensions:
+      - name: store_id
+        expr: STORE_ID
+        description: Store identifier
+        data_type: NUMBER
+    time_dimensions:
+      - name: date
+        expr: DATE
+        description: Performance measurement date
+        data_type: DATE
+    facts:
+      - name: sell_in_units
+        expr: SELL_IN_UNITS
+        description: Units sold to store (sell-in) per day
+        data_type: NUMBER
+      - name: sell_out_units
+        expr: SELL_OUT_UNITS
+        description: Units sold by the store to consumers (sell-out) per day
+        data_type: NUMBER
+      - name: shelf_share_percent
+        expr: SHELF_SHARE_PERCENT
+        description: "Velvet F&B shelf share percentage (0-100)"
+        data_type: FLOAT
+      - name: market_share_percent
+        expr: MARKET_SHARE_PERCENT
+        description: "Velvet F&B market share percentage (0-100)"
+        data_type: FLOAT
+      - name: promo_efficiency_score
+        expr: PROMO_EFFICIENCY_SCORE
+        description: Promotion effectiveness score (1-10)
+        data_type: FLOAT
+      - name: distribution_rate
+        expr: DISTRIBUTION_RATE
+        description: Distribution numeric - percentage of SKUs listed (0-100)
+        data_type: FLOAT
+
+  - name: audits
+    description: Store audit results with compliance scores across multiple dimensions
+    base_table:
+      database: VELVET_FB_DEMO
+      schema: WHOLESALE_APP
+      table: STORE_AUDITS
+    dimensions:
+      - name: audit_id
+        expr: AUDIT_ID
+        description: Unique audit identifier
+        data_type: NUMBER
+      - name: store_id
+        expr: STORE_ID
+        description: Store that was audited
+        data_type: NUMBER
+      - name: rep_id
+        expr: REP_ID
+        description: Rep who performed the audit
+        data_type: NUMBER
+      - name: notes
+        expr: NOTES
+        description: Audit observations and findings
+        data_type: TEXT
+    time_dimensions:
+      - name: audit_date
+        expr: AUDIT_DATE
+        description: Date of the audit
+        data_type: DATE
+    facts:
+      - name: planogram_score
+        expr: PLANOGRAM_COMPLIANCE_SCORE
+        description: Planogram compliance score (0-10, higher is better)
+        data_type: FLOAT
+      - name: price_score
+        expr: PRICE_COMPLIANCE_SCORE
+        description: Price compliance score (0-10)
+        data_type: FLOAT
+      - name: stock_score
+        expr: STOCK_AVAILABILITY_SCORE
+        description: Stock availability score (0-10, higher means less OOS)
+        data_type: FLOAT
+      - name: visibility_score
+        expr: VISIBILITY_SCORE
+        description: Brand visibility score (0-10)
+        data_type: FLOAT
+      - name: overall_score
+        expr: OVERALL_SCORE
+        description: Overall audit score (0-10)
+        data_type: FLOAT
+
+  - name: cases
+    description: Open and resolved store cases (issues, incidents, requests)
+    base_table:
+      database: VELVET_FB_DEMO
+      schema: WHOLESALE_APP
+      table: STORE_CASES
+    dimensions:
+      - name: case_id
+        expr: CASE_ID
+        description: Unique case identifier
+        data_type: NUMBER
+      - name: store_id
+        expr: STORE_ID
+        description: Store related to this case
+        data_type: NUMBER
+      - name: rep_id
+        expr: REP_ID
+        description: Rep who created the case
+        data_type: NUMBER
+      - name: case_type
+        expr: CASE_TYPE
+        description: "Type of case: OOS, Display, Pricing, Contract, Quality"
+        data_type: TEXT
+        sample_values: ["OOS", "Display", "Pricing", "Contract", "Quality"]
+      - name: severity
+        expr: SEVERITY
+        description: "Case severity: High, Medium, Low"
+        data_type: TEXT
+        sample_values: ["High", "Medium", "Low"]
+      - name: status
+        expr: STATUS
+        description: "Case status: Open or Resolved"
+        data_type: TEXT
+        sample_values: ["Open", "Resolved"]
+      - name: subject
+        expr: SUBJECT
+        description: Case title or subject
+        data_type: TEXT
+      - name: description
+        expr: DESCRIPTION
+        description: Detailed case description
+        data_type: TEXT
+      - name: resolution
+        expr: RESOLUTION
+        description: How the case was resolved (null if still open)
+        data_type: TEXT
+    time_dimensions:
+      - name: case_date
+        expr: CASE_DATE
+        description: Date case was opened
+        data_type: DATE
+
+  - name: products
+    description: Product catalog with sellable items, packs, and non-sellable (PLV/displays)
+    base_table:
+      database: VELVET_FB_DEMO
+      schema: WHOLESALE_APP
+      table: PRODUCT_CATALOG
+    dimensions:
+      - name: catalog_id
+        expr: CATALOG_ID
+        description: Product catalog unique identifier
+        data_type: NUMBER
+      - name: product_name
+        expr: PRODUCT_NAME
+        description: Product display name
+        data_type: TEXT
+      - name: category
+        expr: CATEGORY
+        description: "Product category: Fragrance, Skincare, Makeup, Display"
+        data_type: TEXT
+        sample_values: ["Fragrance", "Skincare", "Makeup", "Display"]
+      - name: product_type
+        expr: PRODUCT_TYPE
+        description: "Product type: Sellable, Pack, Non-sellable"
+        data_type: TEXT
+        sample_values: ["Sellable", "Pack", "Non-sellable"]
+      - name: sku
+        expr: SKU
+        description: Stock keeping unit code
+        data_type: TEXT
+    facts:
+      - name: price
+        expr: PRICE
+        description: Retail price in euros
+        data_type: FLOAT
+
+relationships:
+  - name: visits_to_stores
+    left_table: visits
+    right_table: stores
+    join_type: left_outer
+    relationship_type: many_to_one
+    on:
+      - left_column: store_id
+        right_column: store_id
+  - name: performance_to_stores
+    left_table: performance
+    right_table: stores
+    join_type: left_outer
+    relationship_type: many_to_one
+    on:
+      - left_column: store_id
+        right_column: store_id
+  - name: audits_to_stores
+    left_table: audits
+    right_table: stores
+    join_type: left_outer
+    relationship_type: many_to_one
+    on:
+      - left_column: store_id
+        right_column: store_id
+  - name: cases_to_stores
+    left_table: cases
+    right_table: stores
+    join_type: left_outer
+    relationship_type: many_to_one
+    on:
+      - left_column: store_id
+        right_column: store_id
+
+custom_instructions: |
+  This semantic model is for a field sales rep managing luxury cosmetics (Velvet F&B brand) 
+  in premium retailers. When answering questions:
+  - REP_ID 1 is the current user (Eric Sarr, Paris Ouest territory)
+  - Filter by REP_ID = 1 when asking about "my" stores, visits, territory
+  - STORE_ID 65 is Sephora Clamart (hero store)
+  - Today's date should be used for relative date calculations
+  - Performance data: higher sell_out is better, shelf_share > 15% is good
+  - Audit scores: 8+ is good, 6-8 needs attention, below 6 is critical
+  - Visit status: Planned = upcoming, Completed = done, Urgent = requires immediate action

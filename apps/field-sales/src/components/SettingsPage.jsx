@@ -1,13 +1,24 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { ArrowLeft, RotateCcw, Check, Loader2, User, Database } from 'lucide-react'
-import { resetDemo } from '../api'
+import { ArrowLeft, RotateCcw, Check, Loader2, User, Database, MapPin, Save } from 'lucide-react'
+import { resetDemo, getRepProfile, updateHomeAddress } from '../api'
 
 export default function SettingsPage() {
   const navigate = useNavigate()
   const [resetting, setResetting] = useState(false)
   const [resetDone, setResetDone] = useState(false)
   const [result, setResult] = useState(null)
+  const [homeAddress, setHomeAddress] = useState('')
+  const [savedAddress, setSavedAddress] = useState('')
+  const [savingAddress, setSavingAddress] = useState(false)
+  const [addressSaved, setAddressSaved] = useState(false)
+
+  useEffect(() => {
+    getRepProfile().then(res => {
+      setHomeAddress(res.data.HOME_ADDRESS || '')
+      setSavedAddress(res.data.HOME_ADDRESS || '')
+    }).catch(() => {})
+  }, [])
 
   const handleReset = async () => {
     setResetting(true)
@@ -20,6 +31,19 @@ export default function SettingsPage() {
       alert('Reset failed: ' + (e.response?.data?.error || e.message))
     }
     setResetting(false)
+  }
+
+  const handleSaveAddress = async () => {
+    setSavingAddress(true)
+    try {
+      await updateHomeAddress(homeAddress)
+      setSavedAddress(homeAddress)
+      setAddressSaved(true)
+      setTimeout(() => setAddressSaved(false), 2000)
+    } catch (e) {
+      alert('Save failed: ' + (e.response?.data?.error || e.message))
+    }
+    setSavingAddress(false)
   }
 
   return (
@@ -49,6 +73,27 @@ export default function SettingsPage() {
             <p>Region: Île-de-France</p>
             <p>REP ID: 1</p>
           </div>
+        </div>
+
+        <div className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100">
+          <div className="flex items-center gap-3 mb-3">
+            <MapPin size={18} className="text-velvet-gold" />
+            <h2 className="font-semibold text-gray-800">Home Address</h2>
+          </div>
+          <p className="text-xs text-gray-500 mb-3">
+            Used as start and end point for your daily route optimization.
+          </p>
+          <input
+            type="text"
+            value={homeAddress}
+            onChange={(e) => { setHomeAddress(e.target.value); setAddressSaved(false) }}
+            placeholder="Enter your home address..."
+            className="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-velvet-gold/30 focus:border-velvet-gold"
+          />
+          <button onClick={handleSaveAddress} disabled={savingAddress || homeAddress === savedAddress}
+            className="mt-3 w-full flex items-center justify-center gap-2 py-2.5 bg-velvet-dark text-white rounded-xl text-sm font-medium disabled:opacity-40 transition-all">
+            {addressSaved ? <><Check size={14} /> Saved</> : savingAddress ? <Loader2 size={14} className="animate-spin" /> : <><Save size={14} /> Save Address</>}
+          </button>
         </div>
 
         <div className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100">

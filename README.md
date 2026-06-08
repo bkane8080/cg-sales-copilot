@@ -1,0 +1,234 @@
+# Velvet F&B Wholesale Companion — Deployment Guide
+
+> This file provides instructions for **Cortex Code** (or any developer) to fully redeploy this demo on a fresh Snowflake account.
+
+## Prerequisites
+
+- A Snowflake account with **ACCOUNTADMIN** role (or equivalent with CREATE DATABASE, Cortex LLM access)
+- Node.js 18+ installed locally
+- npm installed
+
+## Quick Start (3 steps)
+
+### Step 1: Setup Snowflake Data
+
+Run the SQL setup script against your Snowflake account:
+
+```bash
+# Using Cortex Code SQL execution or SnowSQL:
+# Execute the file: setup_full.sql
+```
+
+Or paste the contents of `setup_full.sql` into a Snowflake worksheet and run all statements.
+
+This creates:
+- Database `VELVET_FB_DEMO` with schema `WHOLESALE_APP`
+- Tables: PRODUCTS, STORES, FIELD_SALES, STORE_PERFORMANCE, VISITS, STORE_AUDITS, STORE_CASES, RETAILER_NEWS, PRODUCT_CATALOG, PLANOGRAMS, VISIT_PHOTOS, VISIT_MERCHANDISING
+- Stage: VISIT_PHOTOS (internal, SSE encryption)
+- ~1559 stores, 36 reps, 31 catalog items, 30 planogram entries, 6 months of performance data, audit history, cases, and retailer news
+
+### Step 2: Install dependencies
+
+```bash
+cd backend && npm install
+cd ../apps/field-sales && npm install
+```
+
+### Step 3: Run locally
+
+Terminal 1 — Backend:
+```bash
+cd backend
+SNOWFLAKE_ACCOUNT=<your-account> \
+SNOWFLAKE_USER=<your-user> \
+SNOWFLAKE_PASSWORD=<your-password-or-token> \
+SNOWFLAKE_WAREHOUSE=COMPUTE_WH \
+SNOWFLAKE_ROLE=ACCOUNTADMIN \
+node server.js
+```
+
+Terminal 2 — Frontend (Field Sales):
+```bash
+cd apps/field-sales
+npm run dev
+```
+
+Open http://localhost:5173
+
+### Step 4 (Optional): Reset demo data
+
+After the app is running, call the demo reset to generate fresh visits for the current week:
+```bash
+curl -X POST http://localhost:8080/api/demo/reset -H "Content-Type: application/json" -d '{"rep_id":1}'
+```
+
+---
+
+## Architecture
+
+```
+┌─────────────────────┐     ┌──────────────────────────────┐
+│  React Frontend     │────▶│  Node.js Backend (Express)   │
+│  (Vite, port 5173)  │     │  (port 8080)                 │
+│  TailwindCSS        │     │                              │
+│  Recharts           │     │  ┌──────────────────────────┐│
+│  React-Leaflet      │     │  │ Snowflake SDK            ││
+└─────────────────────┘     │  │ → VELVET_FB_DEMO         ││
+                            │  │ → Cortex COMPLETE (LLM)  ││
+                            │  └──────────────────────────┘│
+                            └──────────────────────────────┘
+```
+
+## Environment Variables
+
+| Variable | Required | Description |
+|----------|----------|-------------|
+| `SNOWFLAKE_ACCOUNT` | Yes | Account identifier (e.g., `MYORG-MYACCOUNT`) |
+| `SNOWFLAKE_USER` | Yes | Username |
+| `SNOWFLAKE_PASSWORD` | Yes | Password or programmatic token |
+| `SNOWFLAKE_WAREHOUSE` | Yes | Warehouse name (default: `COMPUTE_WH`) |
+| `SNOWFLAKE_ROLE` | No | Role (default: `ACCOUNTADMIN`) |
+| `AZURE_SPEECH_KEY` | No | Azure Cognitive Services key (for voice features) |
+| `AZURE_SPEECH_REGION` | No | Azure region (default: `westeurope`) |
+
+## Key Personas & Entry Points
+
+| Persona | App | Port | Path |
+|---------|-----|------|------|
+| Field Sales (Eric Sarr) | `apps/field-sales` | 5173 | `/` |
+| Sales Manager | `apps/sales-manager` | 5174 | `/` |
+| Category Manager | `apps/category-manager` | 5175 | `/` |
+
+## Hero Store for Demo
+
+- **Sephora Clamart** (STORE_ID 65, REP_ID 1) — -12% sell-out decline, -34% on Lumière de Soie
+- **Marionnaud Clamart** (STORE_ID 299, 0.4km away) — -8% overall, -14% skincare
+- Navigate to `/store/65` to see full KPIs, audits, cases, visit history
+- Click "Prepare" for AI-powered visit briefing (uses Cortex COMPLETE)
+- Click "Start Visit" for retail execution flow (6 steps: Preparation → Store Check → Competition → Promotion → Order → Report)
+- Promotion step is unchecked by default; check it during Preparation to activate in-store promotions
+- Order step shows quarterly territory quotas (progress bars) for non-sellable items
+- Store detail now shows visit card with **Cancel** and **Change Date** options
+
+## Voice Interface
+
+The Agent assistant (`/assistant`) supports voice interaction:
+- **Speech-to-Text**: Uses browser Web Speech API (Chrome `webkitSpeechRecognition`) with Azure Speech Services as fallback
+- **Text-to-Speech**: Azure Neural Voice (`en-US-GuyNeural`) reads agent responses aloud
+- Toggle speaker icon to mute/unmute TTS
+- Tap mic icon to start/stop recording
+
+Requires `AZURE_SPEECH_KEY` and `AZURE_SPEECH_REGION` in `backend/.env`.
+
+## Merchandising Features
+
+- Store Check only shows products matching the store's **assortment** (STORE_ASSORTMENT table)
+- **"Add Product (not in assortment)"** button to manually add non-listed products
+- **Facing change indicators**: visual arrows (↑ green / ↓ red / = grey) comparing current vs previous visit
+- Facing decreases are highlighted as alerts in AI-generated visit reports
+- **Order quota enforcement**: cannot exceed `QUOTA_QTY - USED_QTY` per item
+
+## Nearby POS Agent Flow
+
+When the user says "I have time, any POS nearby?":
+1. Agent queries stores within 2km using HAVERSINE distance
+2. Recommends the store with the worst performance decline
+3. User can **Add to Route** (creates today's visit) or **Schedule Visit** (tomorrow)
+4. After adding, agent offers to **send email notification** to store manager
+
+## API Endpoints
+
+| Method | Path | Description |
+|--------|------|-------------|
+| GET | `/api/stores?rep_id=1` | List stores for rep |
+| GET | `/api/stores/:id` | Store detail |
+| GET | `/api/stores/:id/kpis` | Store KPIs |
+| GET | `/api/stores/:id/performance` | Store performance history |
+| GET | `/api/stores/:id/audits` | Store audit history |
+| GET | `/api/stores/:id/cases` | Store cases |
+| GET | `/api/stores/:id/visits` | Store visit history |
+| GET | `/api/stores/:id/prepare` | AI visit briefing (Cortex) |
+| GET | `/api/stores/:id/planogram` | Theoretical planogram for store |
+| GET | `/api/stores/:id/assortment` | Store assortment (listed Velvet F&B products) |
+| GET | `/api/stores/:id/last-merchandising` | Last visit merchandising data (for pre-fill) |
+| GET | `/api/catalog?type=` | Product catalog (filter by Sellable/Pack/Non-sellable) |
+| GET | `/api/promotions` | Active promotions catalog |
+| GET | `/api/rep/:id/quotas` | Quarterly territory quotas for non-sellable items |
+| GET | `/api/visits?rep_id=1` | Day visits for rep |
+| GET | `/api/rep/:id/kpis` | Territory KPIs |
+| GET | `/api/rep/:id/visits-month` | Monthly visit count |
+| POST | `/api/visits` | Create visit |
+| POST | `/api/visits/:id/audit` | Submit audit score |
+| POST | `/api/visits/:id/merchandising` | Submit merchandising check data |
+| POST | `/api/visits/:id/photos` | Record photo capture |
+| POST | `/api/visits/:id/complete` | Complete visit with score + notes |
+| PUT | `/api/visits/:id/reschedule` | Reschedule visit (change datetime) |
+| DELETE | `/api/visits/:id` | Cancel visit (sets status to Cancelled) |
+| POST | `/api/orders` | Submit order (mock) |
+| POST | `/api/route/optimize` | OSRM route optimization |
+| POST | `/api/demo/reset` | Reset demo data |
+| POST | `/api/agent/interact` | AI chat (Cortex) |
+| POST | `/api/agent/chat` | Field agent chat with nearby POS detection |
+| POST | `/api/agent/send-email` | Mock email to store manager |
+| GET | `/api/agent/speech-token` | Azure Speech auth token |
+| POST | `/api/agent/speech-to-text` | STT (base64 audio → text) |
+| POST | `/api/agent/text-to-speech` | TTS (text → base64 MP3) |
+
+## Cortex AI Features
+
+The app uses `SNOWFLAKE.CORTEX.COMPLETE('mistral-large', ...)` for:
+1. **Visit Preparation** — AI briefing with org changes, open issues, performance highlights
+2. **AI Assistant** — Chat with store context injection
+3. **PPT Generation** — AI-generated executive talking points
+4. **Promo ROI Simulation** — Volume lift predictions
+
+Requires Cortex LLM access enabled on the account.
+
+## Snowflake Tables Summary
+
+| Table | Rows | Purpose |
+|-------|------|---------|
+| PRODUCTS | 15 | Product catalog (Fragrance, Skincare, Makeup) |
+| STORES | ~1559 | Retail POS across France (with REP_ID assignment) |
+| FIELD_SALES | 36 | Sales reps (30 field + 6 managers) |
+| STORE_PERFORMANCE | ~27K | Weekly KPI data (6 months history) |
+| VISITS | Dynamic | Visit schedule (reset via `/api/demo/reset`) |
+| STORE_AUDITS | 14 | Audit history (planogram, price, stock, visibility) |
+| STORE_CASES | 9 | Issues/cases (delivery, planogram, stock, quality) |
+| RETAILER_NEWS | 8 | Org changes and commercial news |
+| PRODUCT_CATALOG | 31 | Full catalog with types: Sellable (15), Pack (6), Non-sellable (10) |
+| PLANOGRAMS | 30 | Theoretical planogram per retailer/store_type |
+| VISIT_PHOTOS | Dynamic | Photo records from store visits |
+| VISIT_MERCHANDISING | Dynamic | Merchandising check data (facings, positions, OOS) |
+| STORE_ASSORTMENT | ~515 | Products listed per store (junction table) |
+| PROMOTIONS | 8 | Activatable in-store promotions (BOGOF, PERCENT_2ND, BUNDLE, 3FOR2, GWP, PERCENT_OFF, SAMPLING) |
+| QUOTAS | 20 | Quarterly territory quotas for non-sellable items per rep |
+
+### Stages
+
+| Stage | Purpose |
+|-------|---------|
+| VISIT_PHOTOS | Internal stage (SSE) for visit photo storage |
+
+## Customization
+
+To change the hero rep:
+1. Edit `apps/field-sales/src/api.js` — change `export const REP_ID = 1` to desired rep
+2. Ensure that rep has stores assigned (check `STORES.REP_ID`)
+
+## Troubleshooting
+
+- **"Missing password" error**: Ensure `SNOWFLAKE_PASSWORD` env var is set when starting the backend
+- **Cortex COMPLETE fails**: Ensure your account has Cortex LLM access enabled. Check that `mistral-large` model is available.
+- **Empty KPIs on store detail**: Run `setup_full.sql` which populates STORE_PERFORMANCE for all stores with REP_ID=1
+- **Map not showing route**: Route only displays when there are visits for the selected day. Navigate dates with arrows.
+- **Visits count too high/low**: Run demo reset: `curl -X POST http://localhost:8080/api/demo/reset -H "Content-Type: application/json" -d '{"rep_id":1}'`
+
+## Lint / Build Commands
+
+```bash
+# Frontend build
+cd apps/field-sales && npm run build
+
+# No lint configured (add eslint if needed)
+```
