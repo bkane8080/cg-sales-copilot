@@ -40,9 +40,22 @@ curl -X POST http://localhost:8080/api/demo/reset -H "Content-Type: application/
 
 ## Snowflake
 - Database: `VELVET_FB_DEMO.WHOLESALE_APP`
-- Tables: PRODUCTS, STORES, FIELD_SALES, STORE_PERFORMANCE, VISITS, STORE_AUDITS, STORE_CASES, RETAILER_NEWS, PRODUCT_CATALOG, PLANOGRAMS, VISIT_PHOTOS, VISIT_MERCHANDISING, STORE_ASSORTMENT, PROMOTIONS, QUOTAS
-- Stage: VISIT_PHOTOS (internal, SSE)
+- Tables: PRODUCTS, STORES, FIELD_SALES, STORE_PERFORMANCE, VISITS, STORE_AUDITS, STORE_CASES, RETAILER_NEWS, PRODUCT_CATALOG, PLANOGRAMS, VISIT_PHOTOS, VISIT_MERCHANDISING, STORE_ASSORTMENT, PROMOTIONS, QUOTAS, PROMOTION_CALENDAR, PROMOTION_HISTORY
+- Stages: VISIT_PHOTOS (internal, SSE), SEMANTIC_MODELS (Cortex Analyst YAML)
+- ML Models: PROMO_SCORE_MODEL v1, PROMO_UPLIFT_MODEL v1 (Model Registry)
 - Cortex: `SNOWFLAKE.CORTEX.COMPLETE('mistral-large', ...)` — returns VARIANT (JS object, not string). Always use `typeof raw === 'string' ? JSON.parse(raw) : raw`
+
+## Key Features
+- **Competition step**: Structured multi-row collection (Brand dropdown, Category, dependent Product dropdown, Type: Pricing/Promotion/Display, Note, Photo)
+- **Promotion management**: ML-scored promo calendar, AI suggestions during visits, promo-based order suggestions
+- **Order form**: PDF generation with product images, EAN-13 barcodes (JsBarcode), pack sizes (10/20 units), email option
+- **Voice**: Web Speech API (Chrome) + Azure STT/TTS fallback
+- **Sellable products**: Ordered in packs (PACK_SIZE column), wholesale pricing
+
+## ML Model Training
+```bash
+SNOWFLAKE_CONNECTION_NAME=DEMO .venv/bin/python train_promo_model.py
+```
 
 ## After Making Changes
 1. If you modify `setup_full.sql` or add new tables: update the "Snowflake Tables Summary" section in `README.md`

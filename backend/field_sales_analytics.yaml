@@ -264,6 +264,76 @@ tables:
         description: Retail price in euros
         data_type: FLOAT
 
+  - name: promotions
+    description: Promotion calendar with general and store-specific promotions, ML-scored for effectiveness
+    base_table:
+      database: VELVET_FB_DEMO
+      schema: WHOLESALE_APP
+      table: PROMOTION_CALENDAR
+    dimensions:
+      - name: promo_cal_id
+        expr: PROMO_CAL_ID
+        description: Unique promotion calendar identifier
+        data_type: NUMBER
+      - name: promo_name
+        expr: PROMO_NAME
+        description: Promotion display name
+        data_type: TEXT
+      - name: promo_type
+        expr: PROMO_TYPE
+        description: "Promotion mechanic: BOGOF, PERCENT_OFF, BUNDLE, GWP, SAMPLING, 3FOR2"
+        data_type: TEXT
+        sample_values: ["BOGOF", "PERCENT_OFF", "BUNDLE", "GWP", "SAMPLING", "3FOR2"]
+      - name: scope
+        expr: SCOPE
+        description: "Promotion scope: GENERAL (all stores) or STORE (store-specific)"
+        data_type: TEXT
+        sample_values: ["GENERAL", "STORE"]
+      - name: store_id
+        expr: STORE_ID
+        description: Store ID if scope is STORE, null for GENERAL promotions
+        data_type: NUMBER
+      - name: category
+        expr: CATEGORY
+        description: Product category targeted by this promotion
+        data_type: TEXT
+        sample_values: ["Fragrance", "Skincare", "Makeup"]
+      - name: description
+        expr: DESCRIPTION
+        description: Detailed promotion description and mechanics
+        data_type: TEXT
+      - name: season
+        expr: SEASON
+        description: Season the promotion targets
+        data_type: TEXT
+        sample_values: ["Summer", "Spring", "Evergreen"]
+      - name: is_active
+        expr: IS_ACTIVE
+        description: Whether the promotion is currently active
+        data_type: BOOLEAN
+    time_dimensions:
+      - name: start_date
+        expr: START_DATE
+        description: Promotion start date
+        data_type: DATE
+      - name: end_date
+        expr: END_DATE
+        description: Promotion end date
+        data_type: DATE
+    facts:
+      - name: discount_value
+        expr: DISCOUNT_VALUE
+        description: Discount percentage or value associated with the promotion
+        data_type: FLOAT
+      - name: ml_score
+        expr: ML_SCORE
+        description: ML-predicted effectiveness score (0-10, higher is better)
+        data_type: FLOAT
+      - name: ml_uplift_pct
+        expr: ML_UPLIFT_PCT
+        description: ML-predicted sales uplift percentage from this promotion
+        data_type: FLOAT
+
 relationships:
   - name: visits_to_stores
     left_table: visits
@@ -297,6 +367,14 @@ relationships:
     on:
       - left_column: store_id
         right_column: store_id
+  - name: promotions_to_stores
+    left_table: promotions
+    right_table: stores
+    join_type: left_outer
+    relationship_type: many_to_one
+    on:
+      - left_column: store_id
+        right_column: store_id
 
 custom_instructions: |
   This semantic model is for a field sales rep managing luxury cosmetics (Velvet F&B brand) 
@@ -308,3 +386,8 @@ custom_instructions: |
   - Performance data: higher sell_out is better, shelf_share > 15% is good
   - Audit scores: 8+ is good, 6-8 needs attention, below 6 is critical
   - Visit status: Planned = upcoming, Completed = done, Urgent = requires immediate action
+  - Promotions: SCOPE='GENERAL' applies to all stores, SCOPE='STORE' is store-specific
+  - ML_SCORE > 7 = high-impact promotion, 5-7 = moderate, < 5 = low impact
+  - ML_UPLIFT_PCT represents expected % increase in sell-out during the promotion
+  - Active promotions: START_DATE <= TODAY AND END_DATE >= TODAY AND IS_ACTIVE = TRUE
+  - When asked about best/top promotions, order by ML_SCORE descending

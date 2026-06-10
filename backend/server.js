@@ -448,7 +448,7 @@ app.post('/api/agent/speech-to-text', async (req, res) => {
     const response = await axios.post(sttUrl, audioBuffer, {
       headers: {
         'Ocp-Apim-Subscription-Key': AZURE_STT_KEY,
-        'Content-Type': 'audio/webm;codecs=opus',
+        'Content-Type': 'audio/ogg;codecs=opus',
         'Accept': 'application/json'
       }
     });
@@ -830,10 +830,18 @@ app.post('/api/visits/:id/complete', async (req, res) => {
     if (visitId === '0' && store_id) {
       const today = new Date().toISOString().split('T')[0];
       const rows = await executeQuery(
-        `SELECT VISIT_ID FROM VISITS WHERE STORE_ID = ? AND STATUS = 'Planned' AND SCHEDULED_DATETIME LIKE ? ORDER BY SCHEDULED_DATETIME LIMIT 1`,
-        [store_id, `${today}%`]
+        `SELECT VISIT_ID FROM VISITS WHERE STORE_ID = ? AND STATUS = 'Planned' AND TO_DATE(SCHEDULED_DATETIME) = ? ORDER BY SCHEDULED_DATETIME LIMIT 1`,
+        [store_id, today]
       );
-      if (rows.length > 0) visitId = rows[0].VISIT_ID;
+      if (rows.length === 0) {
+        const fallback = await executeQuery(
+          `SELECT VISIT_ID FROM VISITS WHERE STORE_ID = ? AND STATUS = 'Planned' ORDER BY SCHEDULED_DATETIME LIMIT 1`,
+          [store_id]
+        );
+        if (fallback.length > 0) visitId = fallback[0].VISIT_ID;
+      } else {
+        visitId = rows[0].VISIT_ID;
+      }
     }
 
     if (visitId && visitId !== '0') {
@@ -965,6 +973,73 @@ app.get('/api/rep/:id/visits-month', async (req, res) => {
     `;
     const rows = await executeQuery(sql, [req.params.id]);
     res.json(rows[0] || { VISITS_THIS_MONTH: 0 });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// ============================================================
+// PROMOTION CALENDAR
+// ============================================================
+app.get('/api/stores/:id/promo-calendar', async (req, res) => {
+  try {
+    const storeId = req.params.id;
+    const sql = `
+      SELECT pc.*, 
+        CASE WHEN pc.SCOPE = 'STORE' THEN 'Store Promotion' ELSE 'General Promotion' END AS PROMO_SCOPE_LABEL
+      FROM PROMOTION_CALENDAR pc
+      WHERE pc.IS_ACTIVE = TRUE
+        AND pc.END_DATE >= CURRENT_DATE()
+        AND (pc.SCOPE = 'GENERAL' OR pc.STORE_ID = ?)
+      ORDER BY pc.START_DATE
+    `;
+    const rows = await executeQuery(sql, [storeId]);
+    res.json(rows);
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+app.get('/api/promo-calendar', async (req, res) => {
+  try {
+    const sql = `
+      SELECT pc.*,
+        CASE WHEN pc.SCOPE = 'STORE' THEN s.STORE_NAME ELSE 'All Stores' END AS STORE_NAME,
+        CASE WHEN pc.SCOPE = 'STORE' THEN 'Store Promotion' ELSE 'General Promotion' END AS PROMO_SCOPE_LABEL
+      FROM PROMOTION_CALENDAR pc
+      LEFT JOIN STORES s ON pc.STORE_ID = s.STORE_ID
+      WHERE pc.IS_ACTIVE = TRUE AND pc.END_DATE >= CURRENT_DATE()
+      ORDER BY pc.ML_SCORE DESC NULLS LAST, pc.START_DATE
+    `;
+    const rows = await executeQuery(sql);
+    res.json(rows);
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+app.get('/api/stores/:id/promo-suggestions', async (req, res) => {
+  try {
+    const storeId = req.params.id;
+    const store = await executeQuery('SELECT RETAILER_NAME, STORE_TYPE, REGION FROM STORES WHERE STORE_ID = ?', [storeId]);
+    const sql = `
+      SELECT pc.*,
+        CASE WHEN pc.SCOPE = 'STORE' THEN 'Store Promotion' ELSE 'General Promotion' END AS PROMO_SCOPE_LABEL
+      FROM PROMOTION_CALENDAR pc
+      WHERE pc.IS_ACTIVE = TRUE
+        AND pc.START_DATE <= DATEADD('day', 30, CURRENT_DATE())
+        AND pc.END_DATE >= CURRENT_DATE()
+        AND (pc.SCOPE = 'GENERAL' OR pc.STORE_ID = ?)
+      ORDER BY pc.ML_SCORE DESC NULLS LAST
+      LIMIT 5
+    `;
+    const promos = await executeQuery(sql, [storeId]);
+    const avgPrice = 65;
+    const suggestions = promos.map(p => ({
+      ...p,
+      estimated_uplift_euros: Math.round((p.ML_UPLIFT_PCT || 15) / 100 * avgPrice * 30)
+    }));
+    res.json({ store: store[0], suggestions });
   } catch (e) {
     res.status(500).json({ error: e.message });
   }

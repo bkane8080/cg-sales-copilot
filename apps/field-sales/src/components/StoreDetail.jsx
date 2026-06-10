@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { ArrowLeft, MessageSquare, ClipboardCheck, Package, PieChart, Target, TrendingUp, BarChart3, Clock, AlertTriangle, FileText, Play, ChevronRight, X, Loader2, Eye } from 'lucide-react'
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts'
-import { getStore, getStoreKPIs, getStorePerformance, getStoreAudits, getStoreCases, getStoreVisits, prepareVisit, getStorePlanogram, getStoreAssortment } from '../api'
+import { getStore, getStoreKPIs, getStorePerformance, getStoreAudits, getStoreCases, getStoreVisits, prepareVisit, getStorePlanogram, getStoreAssortment, getStorePromoCalendar } from '../api'
 
 export default function StoreDetail() {
   const { id } = useParams()
@@ -15,6 +15,7 @@ export default function StoreDetail() {
   const [storeVisits, setStoreVisits] = useState([])
   const [planogram, setPlanogram] = useState([])
   const [assortment, setAssortment] = useState([])
+  const [promoCalendar, setPromoCalendar] = useState([])
   const [activeTab, setActiveTab] = useState('kpis')
   const [showPrepare, setShowPrepare] = useState(false)
   const [briefing, setBriefing] = useState(null)
@@ -31,7 +32,8 @@ export default function StoreDetail() {
       getStoreVisits(id),
       getStorePlanogram(id),
       getStoreAssortment(id),
-    ]).then(([s, k, p, a, c, v, plano, assort]) => {
+      getStorePromoCalendar(id),
+    ]).then(([s, k, p, a, c, v, plano, assort, promos]) => {
       setStore(s.data)
       setKpis(k.data)
       setPerformance(p.data)
@@ -40,6 +42,7 @@ export default function StoreDetail() {
       setStoreVisits(v.data)
       setPlanogram(plano.data)
       setAssortment(assort.data)
+      setPromoCalendar(promos.data)
     }).catch(console.error)
   }, [id])
 
@@ -100,7 +103,7 @@ export default function StoreDetail() {
 
       <div className="px-5 mt-4">
         <div className="flex bg-gray-100 rounded-xl p-1 mb-4 overflow-x-auto">
-          {['kpis', 'planogram', 'assortment', 'audits', 'cases', 'visits'].map(tab => (
+          {['kpis', 'planogram', 'assortment', 'promo', 'audits', 'cases', 'visits'].map(tab => (
             <button key={tab} onClick={() => setActiveTab(tab)}
               className={`flex-1 py-2 rounded-lg text-xs font-medium capitalize transition-all whitespace-nowrap px-2 ${activeTab === tab ? 'bg-white shadow-sm text-gray-900' : 'text-gray-500'}`}>
               {tab}
@@ -192,6 +195,61 @@ export default function StoreDetail() {
                           </div>
                         ))}
                       </div>
+                    </div>
+                  )
+                })}
+              </>
+            )}
+          </div>
+        )}
+
+        {activeTab === 'promo' && (
+          <div className="space-y-3">
+            {promoCalendar.length === 0 ? (
+              <p className="text-center text-gray-400 text-sm py-8">No upcoming promotions</p>
+            ) : (
+              <>
+                {['Store Promotion', 'General Promotion'].map(scope => {
+                  const items = promoCalendar.filter(p => p.PROMO_SCOPE_LABEL === scope)
+                  if (items.length === 0) return null
+                  return (
+                    <div key={scope}>
+                      <h3 className={`text-xs font-semibold uppercase mb-2 ${scope === 'Store Promotion' ? 'text-purple-700' : 'text-blue-700'}`}>
+                        {scope === 'Store Promotion' ? '🎯 ' : '🌐 '}{scope}s
+                      </h3>
+                      {items.map((promo, i) => {
+                        const isActive = new Date(promo.START_DATE) <= new Date() && new Date(promo.END_DATE) >= new Date()
+                        return (
+                          <div key={i} className={`bg-white rounded-2xl p-4 shadow-sm border mb-2 ${scope === 'Store Promotion' ? 'border-purple-200' : 'border-blue-100'}`}>
+                            <div className="flex items-start justify-between">
+                              <div className="flex-1 min-w-0">
+                                <div className="flex items-center gap-2 mb-1">
+                                  <p className="text-sm font-semibold text-gray-900 truncate">{promo.PROMO_NAME}</p>
+                                  <span className={`text-[9px] px-1.5 py-0.5 rounded-full font-bold ${isActive ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'}`}>
+                                    {isActive ? 'ACTIVE' : 'UPCOMING'}
+                                  </span>
+                                </div>
+                                <p className="text-[11px] text-gray-500">
+                                  {new Date(promo.START_DATE).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })} — {new Date(promo.END_DATE).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}
+                                </p>
+                                <p className="text-xs text-gray-600 mt-1 line-clamp-2">{promo.DESCRIPTION}</p>
+                              </div>
+                            </div>
+                            <div className="flex items-center gap-3 mt-2 pt-2 border-t border-gray-50">
+                              <span className="text-[10px] px-2 py-0.5 rounded-full bg-gray-100 text-gray-600 font-medium">{promo.PROMO_TYPE}</span>
+                              {promo.CATEGORY && <span className="text-[10px] text-gray-500">{promo.CATEGORY}</span>}
+                              {promo.ML_SCORE && (
+                                <div className="ml-auto flex items-center gap-2">
+                                  <span className={`text-[10px] font-bold ${promo.ML_SCORE >= 7 ? 'text-emerald-600' : promo.ML_SCORE >= 5 ? 'text-amber-600' : 'text-red-600'}`}>
+                                    Score: {promo.ML_SCORE}/10
+                                  </span>
+                                  <span className="text-[10px] text-blue-600 font-medium">↑{promo.ML_UPLIFT_PCT}%</span>
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        )
+                      })}
                     </div>
                   )
                 })}

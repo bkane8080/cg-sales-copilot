@@ -108,7 +108,35 @@ curl -X POST http://localhost:8080/api/demo/reset -H "Content-Type: application/
 - Click "Start Visit" for retail execution flow (6 steps: Preparation → Store Check → Competition → Promotion → Order → Report)
 - Promotion step is unchecked by default; check it during Preparation to activate in-store promotions
 - Order step shows quarterly territory quotas (progress bars) for non-sellable items
+- Sellable products are ordered in **packs of 10 or 20** with wholesale pricing
 - Store detail now shows visit card with **Cancel** and **Change Date** options
+
+## Promotion Management
+
+- **PROMOTION_CALENDAR** table: 13 entries (8 general + 5 store-specific) with ML scores
+- **ML Models**: PROMO_SCORE_MODEL v1 and PROMO_UPLIFT_MODEL v1 registered in Model Registry
+- **Promo Cal tab** in Store 360 view: shows General (blue) and Store-specific (purple) promotions
+- **Promotion step** during visits: AI-recommended promotions with ML score, uplift %, and € estimate
+- **Order step**: Promo-based quantity suggestions + manual sellable product lines
+- **Order Form PDF**: Generate on Report tab with product images, quantities, EAN-13 barcodes
+- **Semantic model**: `field_sales_analytics.yaml` includes PROMOTION_CALENDAR for Cortex Analyst
+
+### Training the ML Models
+
+```bash
+SNOWFLAKE_CONNECTION_NAME=DEMO .venv/bin/python train_promo_model.py
+```
+
+## Competition Step
+
+Structured data collection during visits:
+- **Brand**: Dropdown with major competitors (Chanel, Dior, Clarins, L'Oréal, Lancôme, Estée Lauder, Guerlain, YSL, Givenchy, Sisley, La Mer, Clinique, Other)
+- **Category**: Fragrance, Skincare, Makeup
+- **Product**: Dependent dropdown (brand + category), with manual entry option
+- **Type**: Pricing, Promotion, or Display observation
+- **Note**: Free-text observation
+- **Photo**: Attach photo evidence
+- Multiple entries per visit supported
 
 ## Voice Interface
 
@@ -173,6 +201,9 @@ When the user says "I have time, any POS nearby?":
 | GET | `/api/agent/speech-token` | Azure Speech auth token |
 | POST | `/api/agent/speech-to-text` | STT (base64 audio → text) |
 | POST | `/api/agent/text-to-speech` | TTS (text → base64 MP3) |
+| GET | `/api/stores/:id/promo-calendar` | Store promotion calendar (general + store-specific) |
+| GET | `/api/promo-calendar` | All promotions calendar |
+| GET | `/api/stores/:id/promo-suggestions` | AI promo suggestions ranked by ML score |
 
 ## Cortex AI Features
 
@@ -203,12 +234,15 @@ Requires Cortex LLM access enabled on the account.
 | STORE_ASSORTMENT | ~515 | Products listed per store (junction table) |
 | PROMOTIONS | 8 | Activatable in-store promotions (BOGOF, PERCENT_2ND, BUNDLE, 3FOR2, GWP, PERCENT_OFF, SAMPLING) |
 | QUOTAS | 20 | Quarterly territory quotas for non-sellable items per rep |
+| PROMOTION_CALENDAR | 13 | Active/upcoming promotions (general + store-specific) with ML scores |
+| PROMOTION_HISTORY | 500 | Historical promotion performance data (training data for ML models) |
 
 ### Stages
 
 | Stage | Purpose |
 |-------|---------|
 | VISIT_PHOTOS | Internal stage (SSE) for visit photo storage |
+| SEMANTIC_MODELS | Cortex Analyst semantic model YAML files |
 
 ## Customization
 
