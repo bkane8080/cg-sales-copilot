@@ -827,27 +827,18 @@ app.post('/api/visits/:id/complete', async (req, res) => {
     const { compliance_score, notes, store_id, rep_id, merch_summary } = req.body;
     let visitId = req.params.id;
 
-    if (visitId === '0' && store_id) {
-      const today = new Date().toISOString().split('T')[0];
+    if ((!visitId || visitId === '0') && store_id) {
       const rows = await executeQuery(
-        `SELECT VISIT_ID FROM VISITS WHERE STORE_ID = ? AND STATUS = 'Planned' AND TO_DATE(SCHEDULED_DATETIME) = ? ORDER BY SCHEDULED_DATETIME LIMIT 1`,
-        [store_id, today]
+        `SELECT VISIT_ID FROM VISITS WHERE STORE_ID = ? AND STATUS = 'Planned' ORDER BY SCHEDULED_DATETIME DESC LIMIT 1`,
+        [store_id]
       );
-      if (rows.length === 0) {
-        const fallback = await executeQuery(
-          `SELECT VISIT_ID FROM VISITS WHERE STORE_ID = ? AND STATUS = 'Planned' ORDER BY SCHEDULED_DATETIME LIMIT 1`,
-          [store_id]
-        );
-        if (fallback.length > 0) visitId = fallback[0].VISIT_ID;
-      } else {
-        visitId = rows[0].VISIT_ID;
-      }
+      if (rows.length > 0) visitId = rows[0].VISIT_ID;
     }
 
     if (visitId && visitId !== '0') {
       await executeQuery(
-        'UPDATE VISITS SET STATUS = ?, AUDIT_PLANOGRAM_COMPLIANCE_SCORE = ?, AI_RECOMMENDATION_NOTES = COALESCE(AI_RECOMMENDATION_NOTES, \'\') || ? WHERE VISIT_ID = ?',
-        ['Completed', compliance_score || null, notes ? ` | Report: ${notes}` : '', visitId]
+        `UPDATE VISITS SET STATUS = 'Completed', AUDIT_PLANOGRAM_COMPLIANCE_SCORE = ?, AI_RECOMMENDATION_NOTES = COALESCE(AI_RECOMMENDATION_NOTES, '') || ? WHERE VISIT_ID = ?`,
+        [compliance_score || null, notes ? ` | Report: ${notes}` : '', visitId]
       );
     }
 
@@ -1337,16 +1328,121 @@ app.post('/api/demo/reset', async (req, res) => {
     await executeQuery(`INSERT INTO STORE_ASSORTMENT (STORE_ID, CATALOG_ID) VALUES (299,1),(299,2),(299,3),(299,4)`);
     await executeQuery(`INSERT INTO STORE_ASSORTMENT (STORE_ID, CATALOG_ID) SELECT 299, CATALOG_ID FROM PRODUCT_CATALOG WHERE PRODUCT_TYPE='Sellable' AND CATEGORY='Skincare'`);
     await executeQuery(`INSERT INTO STORE_ASSORTMENT (STORE_ID, CATALOG_ID) VALUES (299,12),(299,13),(299,14)`);
+
+    // === SALES MANAGER DATA: Reset innovation tracking with launch = 6 months before today ===
+    await executeQuery(`DELETE FROM INNOVATION_TRACKING WHERE REP_ID BETWEEN 1 AND 8`);
+    await executeQuery(`DELETE FROM REP_MONTHLY_PERFORMANCE WHERE REP_ID BETWEEN 1 AND 8`);
+
+    // Regenerate 6 months of innovation tracking (launch date = today - 6 months)
+    await executeQuery(`
+      INSERT INTO INNOVATION_TRACKING (STORE_ID, REP_ID, PRODUCT_NAME, MONTH_DATE, IS_LISTED, FACINGS, SELL_OUT_EUR, LAST_VISIT_DATE, STATUS, NOTES)
+      SELECT s.STORE_ID, s.REP_ID, 'Rouge Velours Éternel', m.MONTH_DATE,
+        CASE
+          WHEN s.STORE_ID = 320 AND m.MONTH_NUM >= 5 THEN FALSE
+          WHEN m.MONTH_NUM = 1 THEN UNIFORM(0,1,RANDOM()) > 0.9
+          WHEN m.MONTH_NUM = 2 THEN UNIFORM(0,1,RANDOM()) > 0.75
+          WHEN m.MONTH_NUM = 3 THEN UNIFORM(0,1,RANDOM()) > 0.6
+          WHEN m.MONTH_NUM = 4 THEN UNIFORM(0,1,RANDOM()) > 0.4
+          WHEN m.MONTH_NUM = 5 THEN UNIFORM(0,1,RANDOM()) > 0.27
+          ELSE UNIFORM(0,1,RANDOM()) > 0.12
+        END,
+        CASE
+          WHEN s.STORE_ID = 320 AND m.MONTH_NUM >= 5 THEN 0
+          WHEN m.MONTH_NUM <= 2 THEN UNIFORM(0,3,RANDOM())
+          WHEN m.MONTH_NUM <= 4 THEN UNIFORM(1,5,RANDOM())
+          ELSE UNIFORM(2,6,RANDOM())
+        END,
+        CASE
+          WHEN s.STORE_ID = 320 AND m.MONTH_NUM >= 5 THEN 0
+          WHEN s.STORE_TIER = 'A' THEN UNIFORM(800,3500,RANDOM())
+          WHEN s.STORE_TIER = 'B' THEN UNIFORM(400,2000,RANDOM())
+          ELSE UNIFORM(200,800,RANDOM())
+        END,
+        DATEADD('day', -UNIFORM(1,25,RANDOM()), LAST_DAY(m.MONTH_DATE)),
+        CASE
+          WHEN s.STORE_ID = 320 AND m.MONTH_NUM = 5 THEN 'Stock-Out'
+          WHEN s.STORE_ID = 320 AND m.MONTH_NUM = 6 THEN 'Delisted'
+          ELSE 'Listed'
+        END,
+        CASE
+          WHEN s.STORE_ID = 320 AND m.MONTH_NUM = 5 THEN 'Stock-out during rep leave. No visit 14 days. Inventory depleted.'
+          WHEN s.STORE_ID = 320 AND m.MONTH_NUM = 6 THEN 'Product delisted. Competitor La Roche-Posay allocated to former slot.'
+          ELSE NULL
+        END
+      FROM STORES s
+      CROSS JOIN (
+        SELECT DATEADD('month', -5, DATE_TRUNC('month', CURRENT_DATE())) AS MONTH_DATE, 1 AS MONTH_NUM UNION ALL
+        SELECT DATEADD('month', -4, DATE_TRUNC('month', CURRENT_DATE())), 2 UNION ALL
+        SELECT DATEADD('month', -3, DATE_TRUNC('month', CURRENT_DATE())), 3 UNION ALL
+        SELECT DATEADD('month', -2, DATE_TRUNC('month', CURRENT_DATE())), 4 UNION ALL
+        SELECT DATEADD('month', -1, DATE_TRUNC('month', CURRENT_DATE())), 5 UNION ALL
+        SELECT DATE_TRUNC('month', CURRENT_DATE()), 6
+      ) m
+      WHERE s.REP_ID BETWEEN 1 AND 8
+    `);
+    await executeQuery(`UPDATE INNOVATION_TRACKING SET FACINGS = 0, SELL_OUT_EUR = 0, STATUS = 'Not Listed' WHERE IS_LISTED = FALSE AND STATUS NOT IN ('Stock-Out', 'Delisted')`);
+
+    // Regenerate rep monthly performance (6 months relative to today)
+    await executeQuery(`
+      INSERT INTO REP_MONTHLY_PERFORMANCE (REP_ID, MONTH_DATE, SELL_IN_EUR, SELL_OUT_EUR, VISITS_COUNT, STORES_VISITED, INNOVATION_ADOPTION_PCT, NUMERICAL_DISTRIBUTION_PCT, WEIGHTED_DISTRIBUTION_PCT, PROMO_SPEND_EUR, PROMO_INCREMENTAL_EUR, PROMO_ROI, SHELF_OCCUPATION_PCT, AVG_AUDIT_SCORE)
+      SELECT rep.REP_ID, m.MONTH_DATE,
+        ROUND(rep.BASE_SELL_IN * (0.85 + m.MONTH_NUM * 0.05 + UNIFORM(-5,5,RANDOM())/100)),
+        ROUND(rep.BASE_SELL_OUT * (0.82 + m.MONTH_NUM * 0.06 + UNIFORM(-5,5,RANDOM())/100)),
+        ROUND(rep.BASE_VISITS * (0.9 + m.MONTH_NUM * 0.03)),
+        rep.STORE_COUNT,
+        LEAST(95, GREATEST(15, rep.BASE_INNOV + m.MONTH_NUM * 12 + UNIFORM(-5,5,RANDOM()))),
+        LEAST(85, GREATEST(40, 45 + m.MONTH_NUM * 7 + UNIFORM(-3,3,RANDOM()))),
+        LEAST(80, GREATEST(35, 40 + m.MONTH_NUM * 7 + UNIFORM(-3,3,RANDOM()))),
+        ROUND(2500 + m.MONTH_NUM * 350 + UNIFORM(-200,200,RANDOM())),
+        ROUND((2500 + m.MONTH_NUM * 350) * rep.BASE_ROI),
+        rep.BASE_ROI,
+        LEAST(20, GREATEST(10, 11 + m.MONTH_NUM * 1.2)),
+        LEAST(9.5, GREATEST(6, rep.BASE_AUDIT + m.MONTH_NUM * 0.2))
+      FROM (
+        SELECT 1 AS REP_ID, 28000 AS BASE_SELL_IN, 32000 AS BASE_SELL_OUT, 55 AS BASE_VISITS, 15 AS STORE_COUNT, 40 AS BASE_INNOV, 2.4 AS BASE_ROI, 7.6 AS BASE_AUDIT UNION ALL
+        SELECT 2, 29000, 34000, 60, 13, 45, 2.8, 8.0 UNION ALL
+        SELECT 3, 22000, 25000, 50, 12, 30, 2.1, 7.2 UNION ALL
+        SELECT 4, 32000, 38000, 68, 16, 42, 2.7, 8.2 UNION ALL
+        SELECT 5, 26000, 28500, 58, 14, 38, 2.5, 7.8 UNION ALL
+        SELECT 6, 27000, 31000, 60, 15, 35, 2.5, 7.9 UNION ALL
+        SELECT 7, 19000, 21000, 45, 13, 20, 1.9, 6.8 UNION ALL
+        SELECT 8, 24000, 27500, 55, 13, 32, 2.2, 7.4
+      ) rep
+      CROSS JOIN (
+        SELECT DATEADD('month', -5, DATE_TRUNC('month', CURRENT_DATE())) AS MONTH_DATE, 1 AS MONTH_NUM UNION ALL
+        SELECT DATEADD('month', -4, DATE_TRUNC('month', CURRENT_DATE())), 2 UNION ALL
+        SELECT DATEADD('month', -3, DATE_TRUNC('month', CURRENT_DATE())), 3 UNION ALL
+        SELECT DATEADD('month', -2, DATE_TRUNC('month', CURRENT_DATE())), 4 UNION ALL
+        SELECT DATEADD('month', -1, DATE_TRUNC('month', CURRENT_DATE())), 5 UNION ALL
+        SELECT DATE_TRUNC('month', CURRENT_DATE()), 6
+      ) m
+    `);
+    // Eric's dip in months 5-6 (personal leave)
+    await executeQuery(`
+      UPDATE REP_MONTHLY_PERFORMANCE SET
+        SELL_OUT_EUR = ROUND(SELL_OUT_EUR * 0.82),
+        VISITS_COUNT = ROUND(VISITS_COUNT * 0.75),
+        INNOVATION_ADOPTION_PCT = GREATEST(INNOVATION_ADOPTION_PCT - 13, 60)
+      WHERE REP_ID = 1 AND MONTH_DATE >= DATEADD('month', -1, DATE_TRUNC('month', CURRENT_DATE()))
+    `);
+
     res.json({ success: true, visits_created: visits.length });
   } catch (e) {
     res.status(500).json({ error: e.message });
   }
 });
 
+app.get('/health', (req, res) => res.json({ status: 'ok' }));
+
 // Serve static frontend in production
-app.use(express.static(path.join(__dirname, '../frontend/build')));
+app.use(express.static(path.join(__dirname, 'frontend/build')));
 app.get('*', (req, res) => {
-  res.sendFile(path.join(__dirname, '../frontend/build/index.html'));
+  const indexPath = path.join(__dirname, 'frontend/build/index.html');
+  if (require('fs').existsSync(indexPath)) {
+    res.sendFile(indexPath);
+  } else {
+    res.status(404).json({ error: 'Frontend not built' });
+  }
 });
 
 app.listen(PORT, '0.0.0.0', () => {

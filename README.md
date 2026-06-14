@@ -127,6 +127,29 @@ curl -X POST http://localhost:8080/api/demo/reset -H "Content-Type: application/
 SNOWFLAKE_CONNECTION_NAME=DEMO .venv/bin/python train_promo_model.py
 ```
 
+## Sales Manager Persona (Amandine Chang)
+
+| Component | Object | Description |
+|-----------|--------|-------------|
+| Semantic View | `SALES_MANAGER_ANALYTICS` | 4 tables with join relationships (team, monthly_performance, innovation_tracking, stores) |
+| Cortex Agent | `SALES_MANAGER_AGENT` | Text-to-SQL (semantic view) + schedule_visit (generic tool → stored procedure) |
+| Streamlit | `SALES_MANAGER_DASHBOARD` | Deployed in Snowsight (Territory → Rep → Store drill-down + Ask AI) |
+| Procedure | `SCHEDULE_VISIT_FOR_STORE(store_id, objective)` | Finds least busy day in next 5 working days, creates visit |
+| Tables | `REP_MONTHLY_PERFORMANCE`, `INNOVATION_TRACKING` | 6-month team KPIs + per-store innovation tracking |
+
+### CoWork Demo Flow
+1. "What's our innovation adoption?" → Team-wide 88% achieved
+2. "Which reps are declining?" → Eric Sarr -13pp
+3. "Show Eric's stores with issues" → Marionnaud Saint-Cloud CC delisted
+4. "What happened at that store?" → Stock-out during leave, competitor took shelf
+5. "Schedule a re-visit to that store" → Procedure creates visit on least busy day
+
+### Running Streamlit Locally
+```bash
+cd apps/sales-manager-streamlit
+streamlit run app.py --server.port 8501
+```
+
 ## Competition Step
 
 Structured data collection during visits:
@@ -243,6 +266,27 @@ Requires Cortex LLM access enabled on the account.
 |-------|---------|
 | VISIT_PHOTOS | Internal stage (SSE) for visit photo storage |
 | SEMANTIC_MODELS | Cortex Analyst semantic model YAML files |
+| STREAMLIT_APPS | Streamlit app deployments (sales_manager/) |
+
+### SPCS Deployment
+
+| Component | Value |
+|-----------|-------|
+| Service | `VELVET_FB_DEMO.WHOLESALE_APP.FIELD_SALES_APP` |
+| URL | https://mgdtkb-sfseeurope-bkane-aws3.snowflakecomputing.app |
+| Compute Pool | `CLIENTELING_POOL_XS` (CPU_X64_XS) |
+| Image | `/velvet_fb_demo/wholesale_app/images/velvet-field-sales:latest` |
+| Secret | `SNOWFLAKE_APP_PASSWORD` (JWT token for DB auth) |
+| Health probe | `/health` |
+
+**Update SPCS service:**
+```bash
+cd "CG Sales Copilot"
+docker build --platform linux/amd64 -t velvet-field-sales:latest .
+docker tag velvet-field-sales:latest sfseeurope-bkane-aws3.registry.snowflakecomputing.com/velvet_fb_demo/wholesale_app/images/velvet-field-sales:latest
+docker push sfseeurope-bkane-aws3.registry.snowflakecomputing.com/velvet_fb_demo/wholesale_app/images/velvet-field-sales:latest
+# Then ALTER SERVICE in Snowflake to pick up new image
+```
 
 ## Customization
 

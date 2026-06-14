@@ -284,7 +284,9 @@ export default function RetailExecution() {
         if (item.EAN) {
           try {
             const barcodeCanvas = document.createElement('canvas')
-            JsBarcode(barcodeCanvas, String(item.EAN), { format: 'EAN13', width: 1, height: 24, displayValue: true, fontSize: 7, margin: 1 })
+            const eanStr = String(item.EAN).replace(/\D/g, '')
+            const ean12 = eanStr.length === 13 ? eanStr.slice(0, 12) : eanStr
+            JsBarcode(barcodeCanvas, ean12, { format: 'EAN13', width: 1, height: 24, displayValue: true, fontSize: 7, margin: 1 })
             doc.addImage(barcodeCanvas.toDataURL('image/png'), 'PNG', 164, y, 32, 12)
           } catch (e) {
             doc.setFontSize(7)
@@ -786,7 +788,7 @@ export default function RetailExecution() {
                       {sug.IMAGE_URL && <img src={sug.IMAGE_URL} alt={sug.PRODUCT_NAME} className="w-8 h-8 rounded-lg object-cover" />}
                       <div className="flex-1 min-w-0">
                         <p className="text-xs font-medium text-gray-800 truncate">{sug.PRODUCT_NAME}</p>
-                        <p className="text-[10px] text-gray-500">{sug.reason} · ↑{sug.uplift}%</p>
+                        <p className="text-[10px] text-gray-500">{sug.reason} · ↑{sug.uplift}% · €{Math.round((sug.uplift / 100) * (sug.PRICE || 50) * sug.suggestedQty * (sug.PACK_SIZE || 10))} uplift</p>
                       </div>
                     </div>
                     <button onClick={() => addSellableToOrder(sug.CATALOG_ID, sug.suggestedQty)}

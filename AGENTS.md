@@ -40,9 +40,13 @@ curl -X POST http://localhost:8080/api/demo/reset -H "Content-Type: application/
 
 ## Snowflake
 - Database: `VELVET_FB_DEMO.WHOLESALE_APP`
-- Tables: PRODUCTS, STORES, FIELD_SALES, STORE_PERFORMANCE, VISITS, STORE_AUDITS, STORE_CASES, RETAILER_NEWS, PRODUCT_CATALOG, PLANOGRAMS, VISIT_PHOTOS, VISIT_MERCHANDISING, STORE_ASSORTMENT, PROMOTIONS, QUOTAS, PROMOTION_CALENDAR, PROMOTION_HISTORY
-- Stages: VISIT_PHOTOS (internal, SSE), SEMANTIC_MODELS (Cortex Analyst YAML)
+- Tables: PRODUCTS, STORES, FIELD_SALES, STORE_PERFORMANCE, VISITS, STORE_AUDITS, STORE_CASES, RETAILER_NEWS, PRODUCT_CATALOG, PLANOGRAMS, VISIT_PHOTOS, VISIT_MERCHANDISING, STORE_ASSORTMENT, PROMOTIONS, QUOTAS, PROMOTION_CALENDAR, PROMOTION_HISTORY, REP_MONTHLY_PERFORMANCE, INNOVATION_TRACKING
+- Stages: VISIT_PHOTOS (internal, SSE), SEMANTIC_MODELS (Cortex Analyst YAML), STREAMLIT_APPS (Streamlit deployments)
 - ML Models: PROMO_SCORE_MODEL v1, PROMO_UPLIFT_MODEL v1 (Model Registry)
+- Semantic Views: SALES_MANAGER_ANALYTICS (4 tables with relationships, ai_sql_generation instructions)
+- Agents: FIELD_SALES_AGENT (rep-facing), SALES_MANAGER_AGENT (manager-facing with schedule_visit tool)
+- Procedures: SCHEDULE_VISIT_FOR_STORE(STORE_ID, OBJECTIVE) — finds least busy day in next 5 working days for the assigned rep
+- Streamlit: SALES_MANAGER_DASHBOARD (deployed in Snowsight via @STREAMLIT_APPS/sales_manager/)
 - Cortex: `SNOWFLAKE.CORTEX.COMPLETE('mistral-large', ...)` — returns VARIANT (JS object, not string). Always use `typeof raw === 'string' ? JSON.parse(raw) : raw`
 
 ## Key Features
@@ -51,6 +55,15 @@ curl -X POST http://localhost:8080/api/demo/reset -H "Content-Type: application/
 - **Order form**: PDF generation with product images, EAN-13 barcodes (JsBarcode), pack sizes (10/20 units), email option
 - **Voice**: Web Speech API (Chrome) + Azure STT/TTS fallback
 - **Sellable products**: Ordered in packs (PACK_SIZE column), wholesale pricing
+
+## Sales Manager Persona (Amandine Chang)
+- **Agent**: SALES_MANAGER_AGENT — Cortex Analyst (semantic view) + schedule_visit (generic tool → stored procedure)
+- **Semantic view**: SALES_MANAGER_ANALYTICS (tables: FIELD_SALES, REP_MONTHLY_PERFORMANCE, INNOVATION_TRACKING, STORES with PRIMARY KEY + RELATIONSHIPS)
+- **Streamlit**: SALES_MANAGER_DASHBOARD on port 8501 (local) or in Snowsight
+- **Procedure**: SCHEDULE_VISIT_FOR_STORE(STORE_ID_INPUT NUMBER, VISIT_OBJECTIVE VARCHAR) — auto-picks least busy day in next 5 working days
+- **Agent tool config**: type=`generic` with `input_schema` (JSON Schema), tool_resources type=`procedure` with `identifier`
+- **Demo story**: Eric Sarr's leave → stock-out → delisting at Marionnaud Saint-Cloud CC (STORE_ID=320)
+- **CoWork scenario**: Territory overview → Who's declining? → Eric's stores → Root cause → Schedule re-visit
 
 ## ML Model Training
 ```bash

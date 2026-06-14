@@ -4,3 +4,6 @@ build/
 .env
 .DS_Store
 *.log
+apps/sales-manager-streamlit/.streamlit/secrets.toml
+__pycache__/
+~$*

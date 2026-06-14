@@ -1,0 +1,228 @@
+name: sales_manager_analytics
+description: >
+  Semantic model for Velvet F&B Sales Manager (Amandine Chang, Paris Region).
+  Covers team performance, innovation tracking (Rouge Velours Éternel), store distribution, and rep KPIs.
+
+tables:
+  - name: team
+    description: Sales reps reporting to the regional manager
+    base_table:
+      database: VELVET_FB_DEMO
+      schema: WHOLESALE_APP
+      table: FIELD_SALES
+    dimensions:
+      - name: rep_id
+        expr: REP_ID
+        description: Unique rep identifier
+        data_type: NUMBER
+      - name: rep_name
+        expr: REP_NAME
+        description: Full name of the sales rep
+        data_type: TEXT
+      - name: region
+        expr: REGION
+        description: Territory name
+        data_type: TEXT
+      - name: role
+        expr: ROLE
+        description: "Role: Field Sales or Regional Sales Manager"
+        data_type: TEXT
+
+  - name: monthly_performance
+    description: Monthly KPIs per sales rep (sell-in, sell-out, innovation, promo ROI)
+    base_table:
+      database: VELVET_FB_DEMO
+      schema: WHOLESALE_APP
+      table: REP_MONTHLY_PERFORMANCE
+    dimensions:
+      - name: rep_id
+        expr: REP_ID
+        description: Sales rep identifier
+        data_type: NUMBER
+    time_dimensions:
+      - name: month_date
+        expr: MONTH_DATE
+        description: First day of the performance month
+        data_type: DATE
+    facts:
+      - name: sell_in_eur
+        expr: SELL_IN_EUR
+        description: Euro value sold to retailers (wholesale) during the month
+        data_type: NUMBER
+      - name: sell_out_eur
+        expr: SELL_OUT_EUR
+        description: Euro value sold to consumers (scanner data) during the month
+        data_type: NUMBER
+      - name: visits_count
+        expr: VISITS_COUNT
+        description: Total store visits completed during the month
+        data_type: NUMBER
+      - name: stores_visited
+        expr: STORES_VISITED
+        description: Distinct stores visited during the month
+        data_type: NUMBER
+      - name: innovation_adoption_pct
+        expr: INNOVATION_ADOPTION_PCT
+        description: Percentage of stores stocking the innovation product (Rouge Velours Éternel)
+        data_type: FLOAT
+      - name: numerical_distribution_pct
+        expr: NUMERICAL_DISTRIBUTION_PCT
+        description: Percentage of stores stocking at least 1 Velvet F&B SKU
+        data_type: FLOAT
+      - name: weighted_distribution_pct
+        expr: WEIGHTED_DISTRIBUTION_PCT
+        description: Distribution weighted by store tier (A=3x, B=2x, C=1x)
+        data_type: FLOAT
+      - name: promo_spend_eur
+        expr: PROMO_SPEND_EUR
+        description: Promotion spending in euros during the month
+        data_type: NUMBER
+      - name: promo_incremental_eur
+        expr: PROMO_INCREMENTAL_EUR
+        description: Incremental sell-out attributed to promotions
+        data_type: NUMBER
+      - name: promo_roi
+        expr: PROMO_ROI
+        description: Promotion ROI (incremental sell-out / spend)
+        data_type: FLOAT
+      - name: shelf_occupation_pct
+        expr: SHELF_OCCUPATION_PCT
+        description: Average shelf share percentage for Velvet F&B
+        data_type: FLOAT
+      - name: avg_audit_score
+        expr: AVG_AUDIT_SCORE
+        description: Average store audit score (0-10)
+        data_type: FLOAT
+
+  - name: innovation_tracking
+    description: Monthly tracking of innovation product (Rouge Velours Éternel) per store
+    base_table:
+      database: VELVET_FB_DEMO
+      schema: WHOLESALE_APP
+      table: INNOVATION_TRACKING
+    dimensions:
+      - name: store_id
+        expr: STORE_ID
+        description: Store identifier
+        data_type: NUMBER
+      - name: rep_id
+        expr: REP_ID
+        description: Sales rep responsible for this store
+        data_type: NUMBER
+      - name: product_name
+        expr: PRODUCT_NAME
+        description: Innovation product name
+        data_type: TEXT
+      - name: is_listed
+        expr: IS_LISTED
+        description: Whether the product is stocked in this store this month
+        data_type: BOOLEAN
+      - name: status
+        expr: STATUS
+        description: "Product status: Listed, Not Listed, Stock-Out, Delisted"
+        data_type: TEXT
+        sample_values: ["Listed", "Not Listed", "Stock-Out", "Delisted"]
+      - name: notes
+        expr: NOTES
+        description: Notes about issues or events at this store
+        data_type: TEXT
+    time_dimensions:
+      - name: month_date
+        expr: MONTH_DATE
+        description: First day of the tracking month
+        data_type: DATE
+      - name: last_visit_date
+        expr: LAST_VISIT_DATE
+        description: Date of the last rep visit to this store
+        data_type: DATE
+    facts:
+      - name: facings
+        expr: FACINGS
+        description: Number of product facings in the store
+        data_type: NUMBER
+      - name: sell_out_eur
+        expr: SELL_OUT_EUR
+        description: Monthly sell-out for the innovation product at this store
+        data_type: FLOAT
+
+  - name: stores
+    description: Retail stores with tier classification
+    base_table:
+      database: VELVET_FB_DEMO
+      schema: WHOLESALE_APP
+      table: STORES
+    dimensions:
+      - name: store_id
+        expr: STORE_ID
+        description: Unique store identifier
+        data_type: NUMBER
+      - name: store_name
+        expr: STORE_NAME
+        description: Store display name
+        data_type: TEXT
+      - name: retailer_name
+        expr: RETAILER_NAME
+        description: "Retailer chain: Sephora, Marionnaud, Nocibé, Beauty Success"
+        data_type: TEXT
+        sample_values: ["Sephora", "Marionnaud", "Nocibé", "Beauty Success"]
+      - name: store_tier
+        expr: STORE_TIER
+        description: "Store tier: A (premium, weight 3x), B (standard, weight 2x), C (other, weight 1x)"
+        data_type: TEXT
+        sample_values: ["A", "B", "C"]
+      - name: region
+        expr: REGION
+        description: Geographic area
+        data_type: TEXT
+      - name: rep_id
+        expr: REP_ID
+        description: Assigned sales rep
+        data_type: NUMBER
+
+relationships:
+  - name: performance_to_team
+    left_table: monthly_performance
+    right_table: team
+    join_type: left_outer
+    relationship_type: many_to_one
+    on:
+      - left_column: rep_id
+        right_column: rep_id
+  - name: innovation_to_stores
+    left_table: innovation_tracking
+    right_table: stores
+    join_type: left_outer
+    relationship_type: many_to_one
+    on:
+      - left_column: store_id
+        right_column: store_id
+  - name: innovation_to_team
+    left_table: innovation_tracking
+    right_table: team
+    join_type: left_outer
+    relationship_type: many_to_one
+    on:
+      - left_column: rep_id
+        right_column: rep_id
+  - name: stores_to_team
+    left_table: stores
+    right_table: team
+    join_type: left_outer
+    relationship_type: many_to_one
+    on:
+      - left_column: rep_id
+        right_column: rep_id
+
+custom_instructions: |
+  This semantic model is for Sales Manager Amandine Chang managing Paris Region (8 reps).
+  Key context:
+  - Innovation product: Rouge Velours Éternel (Makeup, €49.99, launched 6 months ago)
+  - Target: 88% numerical distribution by current month
+  - Eric Sarr (REP_ID=1) had a performance dip in month 5-6 due to personal leave
+  - Marionnaud Saint-Cloud CC (STORE_ID=320) is the critical store that delisted
+  - Store tiers: A=premium (weight 3x), B=standard (weight 2x), C=other (weight 1x)
+  - Promo ROI target: ≥ 2.5x
+  - Good innovation adoption: ≥ 88%, concerning: < 75%
+  - When asked about "my team", filter by MANAGER_ID = 101
+  - When asked about underperformers, look at month-over-month declines in innovation_adoption_pct
+  - The story: Eric's personal leave caused a 14-day visit gap → stock-out → delisting at tier-A store
