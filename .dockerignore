@@ -1,0 +1,11 @@
+node_modules
+.venv
+__pycache__
+*.pyc
+.git
+.env
+apps/field-sales/node_modules
+apps/field-sales/dist
+apps/sales-manager
+apps/sales-manager-streamlit
+apps/category-manager

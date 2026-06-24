@@ -1,6 +1,10 @@
 import axios from 'axios'
 
-const api = axios.create({ baseURL: '' })
+const api = axios.create({
+  baseURL: '',
+  withCredentials: true,
+  headers: { 'X-Requested-With': 'XMLHttpRequest' }
+})
 
 export const REP_ID = 1
 

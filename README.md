@@ -273,19 +273,94 @@ Requires Cortex LLM access enabled on the account.
 | Component | Value |
 |-----------|-------|
 | Service | `VELVET_FB_DEMO.WHOLESALE_APP.FIELD_SALES_APP` |
-| URL | https://mgdtkb-sfseeurope-bkane-aws3.snowflakecomputing.app |
-| Compute Pool | `CLIENTELING_POOL_XS` (CPU_X64_XS) |
-| Image | `/velvet_fb_demo/wholesale_app/images/velvet-field-sales:latest` |
-| Secret | `SNOWFLAKE_APP_PASSWORD` (JWT token for DB auth) |
+| URL | https://aidtkb-sfseeurope-bkane-aws3.snowflakecomputing.app |
+| Compute Pool | `CLIENTELING_POOL_XS` (CPU_X64_XS, 1 node) |
+| Image | `sfseeurope-bkane-aws3.registry.snowflakecomputing.com/velvet_fb_demo/wholesale_app/images/velvet-field-sales:latest` |
+| EAI | `FIELD_SALES_SNOWFLAKE_ACCESS` (egress to `*.snowflakecomputing.com:443`) |
+| Auth | SPCS OAuth token (`/snowflake/session/token`) |
 | Health probe | `/health` |
+| Warehouse | `ClientelingWH` (auto_suspend=3600s) |
 
-**Update SPCS service:**
+**Key SPCS configuration notes:**
+- The container uses the SPCS-injected OAuth token at `/snowflake/session/token` — no password/secret needed
+- `SNOWFLAKE_HOST` must be the **full regional URL** (e.g., `yq03150.eu-west-3.aws.snowflakecomputing.com`) — not just the account locator
+- Get the correct host via: `SELECT SYSTEM$ALLOWLIST()` → look for `type: SNOWFLAKE_DEPLOYMENT`
+- The `username` field must be **omitted** from connection options when using SPCS OAuth
+- An External Access Integration with egress to `*.snowflakecomputing.com:443` is required
+- The `vite.config.js` strips `crossorigin` attributes and `index.html` must not load external fonts (SPCS CSP: `default-src 'self'`)
+
+**Update SPCS service (rebuild & redeploy):**
 ```bash
 cd "CG Sales Copilot"
-docker build --platform linux/amd64 -t velvet-field-sales:latest .
+
+# 1. Build for linux/amd64
+docker build --platform linux/amd64 --no-cache -t velvet-field-sales:latest .
+
+# 2. Login to SPCS registry
+snow spcs image-registry token -c DEMO --format JSON | docker login sfseeurope-bkane-aws3.registry.snowflakecomputing.com -u 0sessiontoken --password-stdin
+
+# 3. Tag and push
 docker tag velvet-field-sales:latest sfseeurope-bkane-aws3.registry.snowflakecomputing.com/velvet_fb_demo/wholesale_app/images/velvet-field-sales:latest
 docker push sfseeurope-bkane-aws3.registry.snowflakecomputing.com/velvet_fb_demo/wholesale_app/images/velvet-field-sales:latest
-# Then ALTER SERVICE in Snowflake to pick up new image
+
+# 4. Drop and recreate service (picks up new image)
+```
+
+**SQL to create/recreate the service:**
+```sql
+USE ROLE ACCOUNTADMIN;
+
+-- Network rule + EAI (one-time setup)
+CREATE OR REPLACE NETWORK RULE VELVET_FB_DEMO.WHOLESALE_APP.SNOWFLAKE_EGRESS_RULE
+  TYPE = HOST_PORT MODE = EGRESS
+  VALUE_LIST = ('*.snowflakecomputing.com:443');
+
+CREATE OR REPLACE EXTERNAL ACCESS INTEGRATION FIELD_SALES_SNOWFLAKE_ACCESS
+  ALLOWED_NETWORK_RULES = (VELVET_FB_DEMO.WHOLESALE_APP.SNOWFLAKE_EGRESS_RULE)
+  ENABLED = TRUE;
+
+-- Drop old service if exists
+DROP SERVICE IF EXISTS VELVET_FB_DEMO.WHOLESALE_APP.FIELD_SALES_APP;
+
+-- Create service
+CREATE SERVICE VELVET_FB_DEMO.WHOLESALE_APP.FIELD_SALES_APP
+  IN COMPUTE POOL CLIENTELING_POOL_XS
+  FROM SPECIFICATION $$
+spec:
+  containers:
+  - name: "web"
+    image: "sfseeurope-bkane-aws3.registry.snowflakecomputing.com/velvet_fb_demo/wholesale_app/images/velvet-field-sales:latest"
+    env:
+      PORT: "8080"
+      SNOWFLAKE_ACCOUNT: "YQ03150"
+      SNOWFLAKE_HOST: "yq03150.eu-west-3.aws.snowflakecomputing.com"
+      SNOWFLAKE_DATABASE: "VELVET_FB_DEMO"
+      SNOWFLAKE_SCHEMA: "WHOLESALE_APP"
+      SNOWFLAKE_WAREHOUSE: "ClientelingWH"
+      SNOWFLAKE_ROLE: "ACCOUNTADMIN"
+      NODE_ENV: "production"
+    readinessProbe:
+      port: 8080
+      path: "/health"
+    resources:
+      limits:
+        memory: "1G"
+        cpu: "1"
+      requests:
+        memory: "512M"
+        cpu: "0.5"
+  endpoints:
+  - name: "web"
+    port: 8080
+    public: true
+$$
+  EXTERNAL_ACCESS_INTEGRATIONS = (FIELD_SALES_SNOWFLAKE_ACCESS)
+  QUERY_WAREHOUSE = 'ClientelingWH'
+  MIN_INSTANCES = 1
+  MAX_INSTANCES = 1;
+
+-- Grant access
+GRANT SERVICE ROLE VELVET_FB_DEMO.WHOLESALE_APP.FIELD_SALES_APP!ALL_ENDPOINTS_USAGE TO ROLE ACCOUNTADMIN;
 ```
 
 ## Customization
@@ -301,6 +376,16 @@ To change the hero rep:
 - **Empty KPIs on store detail**: Run `setup_full.sql` which populates STORE_PERFORMANCE for all stores with REP_ID=1
 - **Map not showing route**: Route only displays when there are visits for the selected day. Navigate dates with arrows.
 - **Visits count too high/low**: Run demo reset: `curl -X POST http://localhost:8080/api/demo/reset -H "Content-Type: application/json" -d '{"rep_id":1}'`
+
+### SPCS-Specific Troubleshooting
+
+- **"upstream request timeout"**: The Snowflake connection is hanging. Check `SNOWFLAKE_HOST` uses the full regional format (run `SELECT SYSTEM$ALLOWLIST()` to find it)
+- **"ENOTFOUND" in service logs**: DNS cannot resolve the host. Ensure the External Access Integration allows `*.snowflakecomputing.com:443` egress
+- **"user differs from access token"**: Remove `username` from connection options when using SPCS OAuth token
+- **Queries hang / 503 after idle**: Warehouse is suspended. Run `ALTER WAREHOUSE ClientelingWH RESUME IF SUSPENDED;` — auto-resume does NOT reliably work from SPCS OAuth
+- **Container keeps restarting**: Check `SELECT SYSTEM$GET_SERVICE_LOGS(...)` for crash reason. Add `process.on('unhandledRejection', ...)` to prevent silent crashes
+- **Static files return 300 bytes**: `.dockerignore` was missing or Docker cache is stale. Use `--no-cache` when building
+- **CORS / Network Error in browser**: SPCS CSP blocks cross-origin. Ensure no external font links in `index.html`, strip `crossorigin` attrs in vite config, use `withCredentials: true` in axios
 
 ## Lint / Build Commands
 

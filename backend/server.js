@@ -10,7 +10,18 @@ const app = express();
 app.use(cors());
 app.use(express.json({ limit: '10mb' }));
 
+// Request logging for SPCS debugging
+app.use((req, res, next) => {
+  if (req.path.startsWith('/api')) {
+    console.log(`[REQ] ${req.method} ${req.path} user=${req.headers['sf-context-current-user'] || 'local'}`);
+  }
+  next();
+});
+
 const PORT = process.env.PORT || 8080;
+
+// SPCS OAuth token handling
+const IS_SPCS = !!process.env.SNOWFLAKE_HOST;
 
 const SF_CONFIG = {
   account: process.env.SNOWFLAKE_ACCOUNT || 'SFSEEUROPE-BKANE_AWS3',
@@ -26,22 +37,51 @@ const SF_CONFIG = {
 const AZURE_STT_KEY = process.env.AZURE_SPEECH_KEY;
 const AZURE_STT_REGION = process.env.AZURE_SPEECH_REGION || 'westeurope';
 
+// SPCS OAuth token (auto-injected by Snowflake in container)
+const fs = require('fs');
+const SPCS_TOKEN_PATH = '/snowflake/session/token';
+
 const SF_ACCOUNT_URL = `https://${(SF_CONFIG.account || '').replace(/-/g, '-')}.snowflakecomputing.com`;
 
 let sfConnection = null;
+let connectionPromise = null;
 
 function getConnection() {
-  return new Promise((resolve, reject) => {
-    if (sfConnection && sfConnection.isUp()) {
-      return resolve(sfConnection);
+  if (sfConnection && sfConnection.isUp()) return Promise.resolve(sfConnection);
+  if (connectionPromise) return connectionPromise;
+
+  connectionPromise = new Promise((resolve, reject) => {
+    const connOpts = { ...SF_CONFIG };
+    if (fs.existsSync(SPCS_TOKEN_PATH)) {
+      connOpts.authenticator = 'OAUTH';
+      connOpts.token = fs.readFileSync(SPCS_TOKEN_PATH, 'utf-8').trim();
+      // In SPCS, we need the regional host
+      if (process.env.SNOWFLAKE_HOST) {
+        connOpts.host = process.env.SNOWFLAKE_HOST;
+      } else {
+        connOpts.host = `${connOpts.account}.snowflakecomputing.com`;
+      }
+      // Remove username - SPCS token is tied to the service owner, not a specific user
+      delete connOpts.username;
+      delete connOpts.password;
+      console.log(`[AUTH] Using SPCS OAuth token, host=${connOpts.host}, account=${connOpts.account}`);
+    } else {
+      console.log('[AUTH] Using password/token auth');
     }
-    const conn = snowflake.createConnection(SF_CONFIG);
+    console.log(`[AUTH] Connecting with account=${connOpts.account}, warehouse=${connOpts.warehouse}, role=${connOpts.role}`);
+    const conn = snowflake.createConnection(connOpts);
     conn.connect((err, conn) => {
-      if (err) return reject(err);
+      if (err) {
+        console.error('[AUTH] Connection failed:', err.message);
+        connectionPromise = null;
+        return reject(err);
+      }
+      console.log('[AUTH] Connected to Snowflake successfully');
       sfConnection = conn;
       resolve(conn);
     });
   });
+  return connectionPromise;
 }
 
 function executeQuery(sql, binds = []) {
@@ -159,8 +199,10 @@ app.get('/api/visits', async (req, res) => {
     }
     sql += ' ORDER BY v.SCHEDULED_DATETIME';
     const rows = await executeQuery(sql, binds);
+    console.log(`[RESP] /api/visits returned ${rows.length} rows`);
     res.json(rows);
   } catch (e) {
+    console.error(`[ERR] /api/visits: ${e.message}`);
     res.status(500).json({ error: e.message });
   }
 });
@@ -1437,6 +1479,7 @@ app.get('/health', (req, res) => res.json({ status: 'ok' }));
 // Serve static frontend in production
 app.use(express.static(path.join(__dirname, 'frontend/build')));
 app.get('*', (req, res) => {
+  if (req.path.startsWith('/api')) return res.status(404).json({ error: 'API endpoint not found' });
   const indexPath = path.join(__dirname, 'frontend/build/index.html');
   if (require('fs').existsSync(indexPath)) {
     res.sendFile(indexPath);
@@ -1445,6 +1488,17 @@ app.get('*', (req, res) => {
   }
 });
 
+// Prevent unhandled rejections from crashing the process in SPCS
+process.on('unhandledRejection', (reason, promise) => {
+  console.error('[FATAL] Unhandled Rejection:', reason);
+});
+process.on('uncaughtException', (err) => {
+  console.error('[FATAL] Uncaught Exception:', err);
+});
+
 app.listen(PORT, '0.0.0.0', () => {
   console.log(`Velvet F&B API running on port ${PORT}`);
+  console.log(`[ENV] SNOWFLAKE_ACCOUNT=${process.env.SNOWFLAKE_ACCOUNT || 'not set'}`);
+  console.log(`[ENV] SNOWFLAKE_HOST=${process.env.SNOWFLAKE_HOST || 'not set'}`);
+  console.log(`[ENV] SPCS token exists: ${fs.existsSync(SPCS_TOKEN_PATH)}`);
 });
